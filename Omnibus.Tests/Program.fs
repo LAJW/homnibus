@@ -5,12 +5,40 @@ open System
 
 open Microsoft.VisualStudio.TestTools.UnitTesting
 
+module Data =
+    let config() = {
+        Workflow = [
+            "Ready", "In Progress"
+            "In Progress", "Pending Review"
+            "Pending Review", "In Review"
+            "In Review", "Merge & environment QA"
+            "Merge & environment QA", "Ready for release"
+            "Ready for release", "Done"
+            
+            "Ready", "Archived"
+            "In Progress", "Archived"
+            "Pending Review", "Archived"
+            "In Review", "Archived"
+            "Merge & environment QA", "Archived"
+            "Ready for release", "Archived"
+        ]
+        InProgress = Set [
+            "In Progress"
+            "Pending Review"
+            "In Review"
+            "Merge & environment QA"
+            "Ready for release"
+        ]
+    }
+
 [<TestClass>]
 type GlueStatuses() =
+    let config = Data.config()
+
     [<TestMethod>]
     member _.Immediate() =
         let results =
-            glueStatuses [
+            glueStatuses config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-04"; State = "Done" }
             ]
@@ -21,7 +49,7 @@ type GlueStatuses() =
     [<TestMethod>]
     member _.SingleStep() =
         let results =
-            glueStatuses [
+            glueStatuses config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-04"; State = "Done" }
@@ -33,7 +61,7 @@ type GlueStatuses() =
     [<TestMethod>]
     member _.StandardFlow() =
         let results =
-            glueStatuses [
+            glueStatuses config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
@@ -49,7 +77,7 @@ type GlueStatuses() =
     [<TestMethod>]
     member _.FlowWithBreaks() =
         let results =
-            glueStatuses [
+            glueStatuses config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-03"; State = "Ready" }
@@ -76,7 +104,7 @@ type GlueStatuses() =
     [<TestMethod>]
     member _.FlowWithLessBreaks() =
         let results =
-            glueStatuses [
+            glueStatuses config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
@@ -95,10 +123,12 @@ type GlueStatuses() =
 
 [<TestClass>]
 type CycleTime() =
+    let config = Data.config()
+
     [<TestMethod>]
     member _.Immediate() =
         let result =
-            cycleTime [
+            cycleTime config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-04"; State = "Done" }
             ]
@@ -108,7 +138,7 @@ type CycleTime() =
     [<TestMethod>]
     member _.SingleStep() =
         let result =
-            cycleTime [
+            cycleTime config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-04"; State = "Done" }
@@ -119,7 +149,7 @@ type CycleTime() =
     [<TestMethod>]
     member _.StandardFlow() =
         let result =
-            cycleTime [
+            cycleTime config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
@@ -134,7 +164,7 @@ type CycleTime() =
     [<TestMethod>]
     member _.FlowWithBreaks() =
         let result =
-            cycleTime [
+            cycleTime config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-03"; State = "Ready" }
@@ -155,7 +185,7 @@ type CycleTime() =
     [<TestMethod>]
     member _.FlowWithLessBreaks() =
         let result =
-            cycleTime [
+            cycleTime config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }

@@ -17,7 +17,11 @@ let parseCsv (path : string) =
                 yield csvParser.ReadFields()
         } |> Seq.toList
     result
-    
+
+type Config = {
+    Workflow : (string * string) list
+    InProgress : string Set
+}
 
 type Status = {
     State: string
@@ -33,13 +37,11 @@ module Status =
             Date = DateTime.Parse(date) // TODO: Can throw
         }
 
-let allowedStates = Set ["In Progress"; "Pending Review"; "Merge & environment QA"; "Ready for release"; "In Review"]
-
-let glueStatuses (statuses : Status list) =
+let glueStatuses (config : Config) (statuses : Status list) =
     seq {
         let mutable lastStart : DateTime option = None
         for before, after in Seq.pairwise statuses do
-            match allowedStates.Contains before.State, allowedStates.Contains after.State, lastStart with
+            match config.InProgress.Contains before.State, config.InProgress.Contains after.State, lastStart with
             | false, true, None ->
                 lastStart <- Some after.Date
             | true, false, Some lastStartValue ->
@@ -50,16 +52,40 @@ let glueStatuses (statuses : Status list) =
             | _ -> () // ignore - glue adjacent segments together
     }
 
-
-let cycleTime (statuses : Status list) =
+let cycleTime config (statuses : Status list) =
     statuses
-    |> glueStatuses
+    |> glueStatuses config
     |> Seq.map ((+) (TimeSpan.FromDays 1))
     |> sum
     |> max (TimeSpan.FromDays 1)
-
+    
 [<EntryPoint>]
 let main (args : string array) =
+    let config = {
+        Workflow = [
+            "Ready", "In Progress"
+            "In Progress", "Pending Review"
+            "Pending Review", "In Review"
+            "In Review", "Merge & environment QA"
+            "Merge & environment QA", "Ready for release"
+            "Ready for release", "Done"
+            
+            "Ready", "Archived"
+            "In Progress", "Archived"
+            "Pending Review", "Archived"
+            "In Review", "Archived"
+            "Merge & environment QA", "Archived"
+            "Ready for release", "Archived"
+        ]
+        InProgress = Set [
+            "In Progress"
+            "Pending Review"
+            "In Review"
+            "Merge & environment QA"
+            "Ready for release"
+        ]
+    }
+
     let path = head args
     printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last)"
     parseCsv path |> Seq.tail |> Seq.map (fun line ->
@@ -68,7 +94,7 @@ let main (args : string array) =
             statuses
             |> List.chunkBySize 2
             |> Seq.map (function [state; date] -> Status.create state date | _ -> failwith "Unreachable")
-            |> Seq.toList
+            |> toList
         let maxCycleTime =
             monad' {
                 let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
@@ -85,9 +111,9 @@ let main (args : string array) =
             }
             |> Option.defaultValue (TimeSpan.FromDays 0)
             |> (+) (TimeSpan.FromDays 1)
-        ticketNo, cycleTime statuses, maxCycleTime, minCycleTime
+        ticketNo, cycleTime config statuses, maxCycleTime, minCycleTime
     )
-    |> Seq.sortBy (fun (_, ct, _, _) -> ct)
+    |> sortBy (fun (_, ct, _, _) -> ct)
     |> iter (fun (ticketNo, cycleTime, maxCycleTime, minCycleTime) ->
         printfn $"{ticketNo},{cycleTime.TotalDays},{maxCycleTime.Days},{minCycleTime.Days}"
     )
