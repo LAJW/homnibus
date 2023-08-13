@@ -108,9 +108,9 @@ let main (args : string array) =
         ]
     }
     
-    match Config.validate config with
-    | Ok() ->
-        let path = head args
+    monad {
+        do! Config.validate config
+        let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
         printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last)"
         parseCsv path |> Seq.tail |> Seq.map (fun line ->
             let ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses = line |> Array.toList
@@ -141,7 +141,9 @@ let main (args : string array) =
         |> iter (fun (ticketNo, cycleTime, maxCycleTime, minCycleTime) ->
             printfn $"{ticketNo},{cycleTime.TotalDays},{maxCycleTime.Days},{minCycleTime.Days}"
         )
-        0
-    | Error err ->
-        printfn $"{err}"
-        1
+    }
+    |> function
+        | Ok () -> 0
+        | Error message ->
+            printfn $"{message}"
+            1
