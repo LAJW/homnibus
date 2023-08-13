@@ -32,6 +32,30 @@ module Data =
     }
 
 [<TestClass>]
+type ConfigTest() =
+    let config = Data.config()
+
+    [<TestMethod>]
+    member _.EndStatuses() =
+        let result = Config.endStatuses config
+        Assert.AreEqual(Set ["Done"; "Archived"], result)
+
+    [<TestMethod>]
+    member _.ValidateOk() =
+        let result = Config.validate config
+        Assert.AreEqual(Ok(), result)
+        
+    [<TestMethod>]
+    member _.``Validate - fail when InProgress contains a status not defined in the process``() =
+        let result = Config.validate { config with InProgress = Set.union config.InProgress (Set ["rhubarb"]) }
+        Assert.AreEqual(Error("Status: 'rhubarb' is not defined in transitions"), result)
+
+    [<TestMethod>]
+    member _.``Validate - fail when status in progress is an end status``() =
+        let result = Config.validate { config with InProgress = Set.union config.InProgress (Set ["Done"]) }
+        Assert.AreEqual(Error($"Status: 'Done' is marked as 'in progress'. End statuses are not allowed to be marked as 'in progress'. End statuses: Archived, Done"), result)
+    
+[<TestClass>]
 type GlueStatuses() =
     let config = Data.config()
 

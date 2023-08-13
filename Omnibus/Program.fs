@@ -23,6 +23,28 @@ type Config = {
     InProgress : string Set
 }
 
+module Config =
+    let internal lhs (this : Config) = this.Workflow |> Seq.map fst |> Set
+    let internal rhs (this : Config) = this.Workflow |> Seq.map snd |> Set
+    
+    let endStatuses (this : Config) : string Set =
+        lhs this |> Set.difference (rhs this)
+
+    let validate (this : Config) : Result<unit, string> =
+        let allStatuses = lhs this |> Set.union (rhs this)
+        let ends = endStatuses this
+        
+        monad {
+            match this.InProgress |> Seq.tryFind (allStatuses.Contains >> not) with
+            | Some unknownStatus ->
+                do! Error($"Status: '{unknownStatus}' is not defined in transitions")
+            | None -> ()
+            match ends |> Seq.tryFind this.InProgress.Contains with
+            | Some endStatus ->
+                do! Error($"Status: '{endStatus}' is marked as 'in progress'. End statuses are not allowed to be marked as 'in progress'. End statuses: {ends |> toArray |> join}")
+            | None -> ()
+        }
+
 type Status = {
     State: string
     Date: DateTime
@@ -85,36 +107,41 @@ let main (args : string array) =
             "Ready for release"
         ]
     }
-
-    let path = head args
-    printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last)"
-    parseCsv path |> Seq.tail |> Seq.map (fun line ->
-        let ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses = line |> Array.toList
-        let statuses =
-            statuses
-            |> List.chunkBySize 2
-            |> Seq.map (function [state; date] -> Status.create state date | _ -> failwith "Unreachable")
-            |> toList
-        let maxCycleTime =
-            monad' {
-                let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
-                let! finish = statuses |> tryLast |> Option.map(Status.date)
-                return finish.Subtract(start)
-            }
-            |> Option.defaultValue (TimeSpan.FromDays 0)
-            |> (+) (TimeSpan.FromDays 1)
-        let minCycleTime =
-            monad' {
-                let! start = statuses |> Seq.tryFindBack (Status.state >> (=) "In Progress") |> Option.map Status.date
-                let! finish = statuses |> tryLast |> Option.map(Status.date)
-                return finish.Subtract(start)
-            }
-            |> Option.defaultValue (TimeSpan.FromDays 0)
-            |> (+) (TimeSpan.FromDays 1)
-        ticketNo, cycleTime config statuses, maxCycleTime, minCycleTime
-    )
-    |> sortBy (fun (_, ct, _, _) -> ct)
-    |> iter (fun (ticketNo, cycleTime, maxCycleTime, minCycleTime) ->
-        printfn $"{ticketNo},{cycleTime.TotalDays},{maxCycleTime.Days},{minCycleTime.Days}"
-    )
-    0
+    
+    match Config.validate config with
+    | Ok() ->
+        let path = head args
+        printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last)"
+        parseCsv path |> Seq.tail |> Seq.map (fun line ->
+            let ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses = line |> Array.toList
+            let statuses =
+                statuses
+                |> List.chunkBySize 2
+                |> Seq.map (function [state; date] -> Status.create state date | _ -> failwith "Unreachable")
+                |> toList
+            let maxCycleTime =
+                monad' {
+                    let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
+                    let! finish = statuses |> tryLast |> Option.map(Status.date)
+                    return finish.Subtract(start)
+                }
+                |> Option.defaultValue (TimeSpan.FromDays 0)
+                |> (+) (TimeSpan.FromDays 1)
+            let minCycleTime =
+                monad' {
+                    let! start = statuses |> Seq.tryFindBack (Status.state >> (=) "In Progress") |> Option.map Status.date
+                    let! finish = statuses |> tryLast |> Option.map(Status.date)
+                    return finish.Subtract(start)
+                }
+                |> Option.defaultValue (TimeSpan.FromDays 0)
+                |> (+) (TimeSpan.FromDays 1)
+            ticketNo, cycleTime config statuses, maxCycleTime, minCycleTime
+        )
+        |> sortBy (fun (_, ct, _, _) -> ct)
+        |> iter (fun (ticketNo, cycleTime, maxCycleTime, minCycleTime) ->
+            printfn $"{ticketNo},{cycleTime.TotalDays},{maxCycleTime.Days},{minCycleTime.Days}"
+        )
+        0
+    | Error err ->
+        printfn $"{err}"
+        1
