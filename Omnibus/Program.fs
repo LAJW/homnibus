@@ -24,15 +24,14 @@ type Status = {
     Date: DateTime
 }
 
-let date (status : Status) = status.Date
-
-let state (status : Status) = status.State
-
-let toStatus (state : string) (date : string) =
-    {
-        State = state
-        Date = DateTime.Parse(date) // TODO: Can throw
-    }
+module Status =
+    let date (status : Status) = status.Date
+    let state (status : Status) = status.State
+    let create (state : string) (date : string) =
+        {
+            State = state
+            Date = DateTime.Parse(date) // TODO: Can throw
+        }
 
 let allowedStates = Set ["In Progress"; "Pending Review"; "Merge & environment QA"; "Ready for release"; "In Review"]
 
@@ -68,20 +67,20 @@ let main (args : string array) =
         let statuses =
             statuses
             |> List.chunkBySize 2
-            |> Seq.map (function [state; date] -> toStatus state date | _ -> failwith "Unreachable")
+            |> Seq.map (function [state; date] -> Status.create state date | _ -> failwith "Unreachable")
             |> Seq.toList
         let maxCycleTime =
             monad' {
-                let! start = statuses |> tryFind (state >> (=) "In Progress") |> Option.map date
-                let! finish = statuses |> tryLast |> Option.map(date)
+                let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
+                let! finish = statuses |> tryLast |> Option.map(Status.date)
                 return finish.Subtract(start)
             }
             |> Option.defaultValue (TimeSpan.FromDays 0)
             |> (+) (TimeSpan.FromDays 1)
         let minCycleTime =
             monad' {
-                let! start = statuses |> Seq.tryFindBack (state >> (=) "In Progress") |> Option.map date
-                let! finish = statuses |> tryLast |> Option.map(date)
+                let! start = statuses |> Seq.tryFindBack (Status.state >> (=) "In Progress") |> Option.map Status.date
+                let! finish = statuses |> tryLast |> Option.map(Status.date)
                 return finish.Subtract(start)
             }
             |> Option.defaultValue (TimeSpan.FromDays 0)
