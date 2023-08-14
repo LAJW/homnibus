@@ -34,12 +34,14 @@ module Config =
     let startStatuses (this : Config) : string Set =
         rhs this |> Set.difference (lhs this)
 
+    let allStates this = lhs this |> Set.union (rhs this)
+
     let validate (this : Config) : Result<unit, string> =
-        let allStatuses = lhs this |> Set.union (rhs this)
+        let allStates = allStates this
         let ends = endStatuses this
         
         monad {
-            match this.InProgress |> Seq.tryFind (allStatuses.Contains >> not) with
+            match this.InProgress |> Seq.tryFind (allStates.Contains >> not) with
             | Some unknownStatus ->
                 do! Error($"Status: '{unknownStatus}' is not defined in transitions")
             | None -> ()
@@ -69,10 +71,14 @@ module Status =
     let date (status : Status) = status.Date
     let state (status : Status) = status.State
     let create (state : string) (date : string) =
-        {
-            State = state
-            Date = DateTime.Parse(date) // TODO: Can throw
-        }
+        match DateTime.TryParse date with
+        | true, date ->
+            Ok {
+                State = state
+                Date = date
+            }
+        | false, _ ->
+            Error($"Invalid date: {date}")
 
 let glueStatuses (config : Config) (statuses : Status list) =
     seq {
@@ -148,15 +154,34 @@ let main (args : string array) =
     
     monad {
         do! Config.validate config
+        let allStates = Config.allStates config
         let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
         printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last),Process Violations,Skips,Pushbacks"
-        parseCsv path |> Seq.tail |> Seq.map (fun line ->
-            let ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses = line |> Array.toList
-            let statuses =
+        let results = parseCsv path |> Seq.tail |> Seq.map (fun line -> monad {
+            let! ticketNo, statuses =
+                match Array.toList line with
+                | ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses ->
+                    Ok(ticketNo, statuses)
+                | _ -> Error ["Not enough elements in a row"]
+            let! statuses =
                 statuses
                 |> List.chunkBySize 2
-                |> Seq.map (function [state; date] -> Status.create state date | _ -> failwith "Unreachable")
-                |> toList
+                |> Seq.map (function
+                    [state; date] ->
+                        monad {
+                            let! status = Status.create state date
+                            if not (allStates.Contains status.State) then
+                                do! Error $"Unknown state {status.State}"
+                            status
+                        }
+                    | _ -> failwith "Unreachable")
+                |> Seq.fold (fun (maybeResult : Result<Status list, string list>) maybeStatus ->
+                    match maybeResult, maybeStatus with
+                    | Ok result, Ok state -> Ok(result @ [state])
+                    | Ok _, Error error -> Error [error]
+                    | Error errors, Error error -> Error(errors @ [error])
+                    | Error errors, Ok _ -> Error errors
+                ) (Ok [])
             let maxCycleTime =
                 monad' {
                     let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
@@ -181,7 +206,10 @@ let main (args : string array) =
                 Skips = countSkips config statuses
                 ProcessViolations = countProcessViolations config statuses
             |}
-        )
+        })
+        let successes = results |> Seq.choose Result.toOption
+
+        successes
         |> sortBy (fun stats -> stats.CycleTime)
         |> iter (fun stats ->
             [
@@ -196,6 +224,13 @@ let main (args : string array) =
             |> join
             |> printfn "%s"
         )
+        
+        let errors = results |> Seq.choose (function Ok _ -> None | Error err -> Some err)
+        
+        printfn "\nErrors:"
+        for errors in errors do printfn "%s" (join errors)
+        
+        if successes |> Seq.isEmpty then do! Error("No successful rows have been processed")
     }
     |> function
         | Ok () -> 0
