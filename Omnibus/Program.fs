@@ -5,7 +5,7 @@ open System.Collections.Generic
 open Microsoft.VisualBasic.FileIO
 open FSharpPlus
 
-let join (arr : string seq) = String.Join(", ", arr)
+let join (delim : string) (arr : string seq) = String.Join(delim, arr)
 
 let parseCsv (path : string) =
     use csvParser = new TextFieldParser(path)
@@ -47,7 +47,8 @@ module Config =
             | None -> ()
             match ends |> Seq.tryFind this.InProgress.Contains with
             | Some endStatus ->
-                do! Error($"Status: '{endStatus}' is marked as 'in progress'. End statuses are not allowed to be marked as 'in progress'. End statuses: {ends |> toArray |> join}")
+                let joined = ends |> toArray |> join ", "
+                do! Error($"Status: '{endStatus}' is marked as 'in progress'. End statuses are not allowed to be marked as 'in progress'. End statuses: {joined}")
             | None -> ()
         }
         
@@ -188,7 +189,10 @@ let main (args : string array) =
                     | Error errors, Error error -> Error(errors @ [error])
                     | Error errors, Ok _ -> Error errors
                 ) (Ok [])
-                |> Result.mapError (fun errors -> $"Line {index + 1}: {ticketNo} - {errors |> Seq.distinct |> join}")
+                |> Result.mapError (fun errors ->
+                    let summary = errors |> Seq.distinct |> join ", "
+                    $"Line {index + 1}: {ticketNo} - {summary}"
+                )
             let maxCycleTime =
                 monad' {
                     let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
@@ -228,7 +232,7 @@ let main (args : string array) =
                 stats.ProcessViolations.ToString()
                 (stats.ProcessViolations - stats.Skips).ToString()
             ]
-            |> join
+            |> join ","
             |> printfn "%s"
         )
         
