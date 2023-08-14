@@ -124,6 +124,24 @@ let countSkips config (statuses : Status list) =
 let countPushbacks config statuses =
     (countProcessViolations config statuses) - (countSkips config statuses)
 
+let maxCycleTime statuses =
+    monad {
+        let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
+        let! finish = statuses |> tryLast |> Option.map(Status.date)
+        return finish.Subtract(start)
+    }
+    |> Option.defaultValue (TimeSpan.FromDays 0)
+    |> (+) (TimeSpan.FromDays 1)
+
+let minCycleTime statuses =
+    monad {
+        let! start = statuses |> Seq.tryFindBack (Status.state >> (=) "In Progress") |> Option.map Status.date
+        let! finish = statuses |> tryLast |> Option.map(Status.date)
+        return finish.Subtract(start)
+    }
+    |> Option.defaultValue (TimeSpan.FromDays 0)
+    |> (+) (TimeSpan.FromDays 1)
+
 [<EntryPoint>]
 let main (args : string array) =
     let config = {
@@ -199,27 +217,11 @@ let main (args : string array) =
                     let summary = errors |> Seq.distinct |> join ", "
                     $"Line {index + 1}: {ticketNo} - {summary}"
                 )
-            let maxCycleTime =
-                monad' {
-                    let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
-                    let! finish = statuses |> tryLast |> Option.map(Status.date)
-                    return finish.Subtract(start)
-                }
-                |> Option.defaultValue (TimeSpan.FromDays 0)
-                |> (+) (TimeSpan.FromDays 1)
-            let minCycleTime =
-                monad' {
-                    let! start = statuses |> Seq.tryFindBack (Status.state >> (=) "In Progress") |> Option.map Status.date
-                    let! finish = statuses |> tryLast |> Option.map(Status.date)
-                    return finish.Subtract(start)
-                }
-                |> Option.defaultValue (TimeSpan.FromDays 0)
-                |> (+) (TimeSpan.FromDays 1)
             {|
                 TicketNo = ticketNo
                 CycleTime = cycleTime config statuses
-                MaxCycleTime = maxCycleTime
-                MinCycleTime = minCycleTime
+                MaxCycleTime = maxCycleTime statuses
+                MinCycleTime = minCycleTime statuses
                 Skips = countSkips config statuses
                 ProcessViolations = countProcessViolations config statuses
             |}
