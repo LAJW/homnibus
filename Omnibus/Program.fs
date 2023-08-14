@@ -188,7 +188,7 @@ let main (args : string array) =
                     | Error errors, Error error -> Error(errors @ [error])
                     | Error errors, Ok _ -> Error errors
                 ) (Ok [])
-                |> Result.mapError (fun errors -> $"Line {index + 1}: {ticketNo} - {join errors}")
+                |> Result.mapError (fun errors -> $"Line {index + 1}: {ticketNo} - {errors |> Seq.distinct |> join}")
             let maxCycleTime =
                 monad' {
                     let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
