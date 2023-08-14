@@ -244,8 +244,9 @@ let main (args : string array) =
         
         let errors = results |> Seq.choose (function Ok _ -> None | Error err -> Some err)
         
-        printfn "\nErrors:"
-        for error in errors do printfn "%s" error
+        if errors |> Seq.isEmpty |> not then
+            printfn "\nErrors:"
+            for error in errors do printfn "%s" error
         
         if successes |> Seq.isEmpty then do! Error("No successful rows have been processed")
     }
