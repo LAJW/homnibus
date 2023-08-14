@@ -130,6 +130,12 @@ let main (args : string array) =
         Workflow = [
             // Here we encode allowed transitions
             // "state before", "state after"
+            // Legacy transitions
+            "To be refined", "Backlog"
+            "Backlog", "Ready"
+            "To be refined", "Triage"
+            "Triage", "Ready"
+            
             "To be refined", "Refined"
             "Refined", "Ready"
             "Ready", "In Progress"
