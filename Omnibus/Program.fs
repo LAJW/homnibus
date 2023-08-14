@@ -129,26 +129,30 @@ let main (args : string array) =
         Workflow = [
             // Here we encode allowed transitions
             // "state before", "state after"
+            "To be refined", "Refined"
+            "Refined", "Ready"
             "Ready", "In Progress"
             "In Progress", "Pending Review"
             "Pending Review", "In Review"
             "In Review", "Merge & environment QA"
-            "Merge & environment QA", "Ready for release"
-            "Ready for release", "Done"
+            "Merge & environment QA", "Ready for Release"
+            "Ready for Release", "Done"
             
+            "To be refined", "Archived"
+            "Refined", "Archived"
             "Ready", "Archived"
             "In Progress", "Archived"
             "Pending Review", "Archived"
             "In Review", "Archived"
             "Merge & environment QA", "Archived"
-            "Ready for release", "Archived"
+            "Ready for Release", "Archived"
         ]
         InProgress = Set [
             "In Progress"
             "Pending Review"
             "In Review"
             "Merge & environment QA"
-            "Ready for release"
+            "Ready for Release"
         ]
     }
     
