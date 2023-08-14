@@ -54,7 +54,19 @@ type ConfigTest() =
     member _.``Validate - fail when status in progress is an end status``() =
         let result = Config.validate { config with InProgress = Set.union config.InProgress (Set ["Done"]) }
         Assert.AreEqual(Error($"Status: 'Done' is marked as 'in progress'. End statuses are not allowed to be marked as 'in progress'. End statuses: Archived, Done"), result)
-    
+        
+    [<TestMethod>]
+    member _.StateOrder() =
+        let order = Config.stateOrder config
+        Assert.AreEqual(1, order["Ready"])
+        Assert.AreEqual(2, order["In Progress"])
+        Assert.AreEqual(3, order["Pending Review"])
+        Assert.AreEqual(4, order["In Review"])
+        Assert.AreEqual(5, order["Merge & environment QA"])
+        Assert.AreEqual(6, order["Ready for release"])
+        Assert.AreEqual(7, order["Done"])
+        Assert.AreEqual(7, order["Archived"])
+
 [<TestClass>]
 type GlueStatuses() =
     let config = Data.config()
@@ -221,3 +233,89 @@ type CycleTime() =
             ]
         
         Assert.AreEqual(TimeSpan.FromDays 7, result)
+
+[<TestClass>]
+type ExtraStats() =
+    let config = Data.config()
+
+    [<TestMethod>]
+    member _.Immediate() =
+        let input =
+            [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Done" }
+            ]
+        
+        Assert.AreEqual(1, countSkips config input)
+        Assert.AreEqual(1, countProcessViolations config input)
+        Assert.AreEqual(0, countPushbacks config input)
+
+    [<TestMethod>]
+    member _.SingleStep() =
+        let input =
+            [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Done" }
+            ]
+        
+        Assert.AreEqual(1, countSkips config input)
+        Assert.AreEqual(1, countProcessViolations config input)
+        Assert.AreEqual(0, countPushbacks config input)
+
+    [<TestMethod>]
+    member _.StandardFlow() =
+        let input =
+            [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-04"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-05"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Done" }
+            ]
+        
+        Assert.AreEqual(0, countSkips config input)
+        Assert.AreEqual(0, countProcessViolations config input)
+        Assert.AreEqual(0, countPushbacks config input)
+
+    [<TestMethod>]
+    member _.FlowWithBreaks() =
+        let input =
+            [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-03"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-15"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-21"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+            ]
+        
+        Assert.AreEqual(5, countSkips config input)
+        Assert.AreEqual(10, countProcessViolations config input)
+        Assert.AreEqual(5, countPushbacks config input)
+
+    [<TestMethod>]
+    member _.FlowWithLessBreaks() =
+        let input =
+            [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-05"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-08"; State = "Done" }
+            ]
+        
+        Assert.AreEqual(1, countSkips config input)
+        Assert.AreEqual(2, countProcessViolations config input)
+        Assert.AreEqual(1, countPushbacks config input)

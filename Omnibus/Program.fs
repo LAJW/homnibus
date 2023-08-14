@@ -1,6 +1,7 @@
 ﻿module Omnibus
 
 open System
+open System.Collections.Generic
 open Microsoft.VisualBasic.FileIO
 open FSharpPlus
 
@@ -30,6 +31,9 @@ module Config =
     let endStatuses (this : Config) : string Set =
         lhs this |> Set.difference (rhs this)
 
+    let startStatuses (this : Config) : string Set =
+        rhs this |> Set.difference (lhs this)
+
     let validate (this : Config) : Result<unit, string> =
         let allStatuses = lhs this |> Set.union (rhs this)
         let ends = endStatuses this
@@ -44,6 +48,17 @@ module Config =
                 do! Error($"Status: '{endStatus}' is marked as 'in progress'. End statuses are not allowed to be marked as 'in progress'. End statuses: {ends |> toArray |> join}")
             | None -> ()
         }
+        
+    let stateOrder (config : Config) =
+        let starts = startStatuses config
+        let result = Dictionary<string, int>()
+        let mutable layer = starts |> toList
+        let mutable order = 1
+        while not layer.IsEmpty do
+            for status in layer do result[status] <- order
+            layer <- layer |> List.collect (fun status -> config.Workflow |> filter (fst >> (=) status) |> List.map snd)
+            order <- order + 1
+        result
 
 type Status = {
     State: string
@@ -80,11 +95,34 @@ let cycleTime config (statuses : Status list) =
     |> Seq.map ((+) (TimeSpan.FromDays 1))
     |> sum
     |> max (TimeSpan.FromDays 1)
+
+let countProcessViolations (config : Config) (statuses : Status list) =
+    let workflow = config.Workflow |> Set
+    statuses |> Seq.map Status.state |> Seq.pairwise |> filter (workflow.Contains >> not) |> Seq.length
+
+let countSkips config (statuses : Status list) =
+    let workflow = Set config.Workflow
+    let stateOrder = config |> Config.stateOrder
+    statuses
+    |> Seq.map Status.state
+    |> Seq.pairwise
+    |> Seq.filter (fun (before, after) ->
+        stateOrder.ContainsKey before
+        && stateOrder.ContainsKey after
+        && stateOrder[before] < stateOrder[after]
+        && workflow.Contains (before, after) |> not
+    )
+    |> Seq.length
     
+let countPushbacks config statuses =
+    (countProcessViolations config statuses) - (countSkips config statuses)
+
 [<EntryPoint>]
 let main (args : string array) =
     let config = {
         Workflow = [
+            // Here we encode allowed transitions
+            // "state before", "state after"
             "Ready", "In Progress"
             "In Progress", "Pending Review"
             "Pending Review", "In Review"
@@ -111,7 +149,7 @@ let main (args : string array) =
     monad {
         do! Config.validate config
         let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
-        printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last)"
+        printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last),Process Violations,Skips,Pushbacks"
         parseCsv path |> Seq.tail |> Seq.map (fun line ->
             let ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses = line |> Array.toList
             let statuses =
@@ -135,11 +173,28 @@ let main (args : string array) =
                 }
                 |> Option.defaultValue (TimeSpan.FromDays 0)
                 |> (+) (TimeSpan.FromDays 1)
-            ticketNo, cycleTime config statuses, maxCycleTime, minCycleTime
+            {|
+                TicketNo = ticketNo
+                CycleTime = cycleTime config statuses
+                MaxCycleTime = maxCycleTime
+                MinCycleTime = minCycleTime
+                Skips = countSkips config statuses
+                ProcessViolations = countProcessViolations config statuses
+            |}
         )
-        |> sortBy (fun (_, ct, _, _) -> ct)
-        |> iter (fun (ticketNo, cycleTime, maxCycleTime, minCycleTime) ->
-            printfn $"{ticketNo},{cycleTime.TotalDays},{maxCycleTime.Days},{minCycleTime.Days}"
+        |> sortBy (fun stats -> stats.CycleTime)
+        |> iter (fun stats ->
+            [
+                stats.TicketNo
+                stats.CycleTime.Days.ToString()
+                stats.MaxCycleTime.Days.ToString()
+                stats.MinCycleTime.Days.ToString()
+                stats.Skips.ToString()
+                stats.ProcessViolations.ToString()
+                (stats.ProcessViolations - stats.Skips).ToString()
+            ]
+            |> join
+            |> printfn "%s"
         )
     }
     |> function
