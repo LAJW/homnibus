@@ -183,7 +183,7 @@ let main (args : string array) =
     
     let enumerate = Seq.zip (Seq.initInfinite id)
     
-    monad {
+    monad' {
         do! Config.validate config
         let allStates = Config.allStates config
         let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
