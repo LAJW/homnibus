@@ -245,8 +245,8 @@ let main (args : string array) =
         let errors = results |> Seq.choose (function Ok _ -> None | Error err -> Some err)
         
         if errors |> Seq.isEmpty |> not then
-            printfn "\nErrors:"
-            for error in errors do printfn "%s" error
+            Console.Error.WriteLine("\nErrors:")
+            for error in errors do Console.Error.WriteLine(error)
         
         if successes |> Seq.isEmpty then do! Error("No successful rows have been processed")
     }
