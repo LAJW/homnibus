@@ -156,17 +156,19 @@ let main (args : string array) =
         ]
     }
     
+    let enumerate = Seq.zip (Seq.initInfinite id)
+    
     monad {
         do! Config.validate config
         let allStates = Config.allStates config
         let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
         printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last),Process Violations,Skips,Pushbacks"
-        let results = parseCsv path |> Seq.tail |> Seq.map (fun line -> monad {
+        let results = parseCsv path |> enumerate |> Seq.tail |> Seq.map (fun (index, line) -> monad {
             let! ticketNo, statuses =
                 match Array.toList line with
                 | ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses ->
                     Ok(ticketNo, statuses)
-                | _ -> Error ["Not enough elements in a row"]
+                | _ -> Error "Not enough elements in a row"
             let! statuses =
                 statuses
                 |> List.chunkBySize 2
@@ -186,6 +188,7 @@ let main (args : string array) =
                     | Error errors, Error error -> Error(errors @ [error])
                     | Error errors, Ok _ -> Error errors
                 ) (Ok [])
+                |> Result.mapError (fun errors -> $"Line {index + 1}: {ticketNo} - {join errors}")
             let maxCycleTime =
                 monad' {
                     let! start = statuses |> tryFind (Status.state >> (=) "In Progress") |> Option.map Status.date
@@ -232,7 +235,7 @@ let main (args : string array) =
         let errors = results |> Seq.choose (function Ok _ -> None | Error err -> Some err)
         
         printfn "\nErrors:"
-        for errors in errors do printfn "%s" (join errors)
+        for error in errors do printfn "%s" error
         
         if successes |> Seq.isEmpty then do! Error("No successful rows have been processed")
     }
