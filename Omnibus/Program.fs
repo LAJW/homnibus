@@ -193,7 +193,7 @@ let internal regex = Regex("(\"|,|[^\",]+)")
 let lex (s: string) =
     regex.Matches(s) |> Seq.collect (fun m -> m.Captures) |> Seq.map (fun c -> c.Value)
 
-let parse (row: string) =
+let excelStyleCsvParse (row: string) =
     let tokens = row |> lex |> Seq.toArray
     let mutable index = 0
     seq {
@@ -280,7 +280,7 @@ let main (args : string array) =
         let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
         printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last),Process Violations,Skips,Pushbacks"
         let results = path |> File.ReadLines |> enumerate |> Seq.tail |> Seq.map (fun (index, rawLine) -> monad {
-            let! line = parse rawLine
+            let! line = excelStyleCsvParse rawLine
             let! ticketNo, statuses =
                 match line with
                 | ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses ->

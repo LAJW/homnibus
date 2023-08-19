@@ -636,50 +636,50 @@ type CsvParserTest() =
     [<DataRow("\"foo, bar\"", "foo, bar")>]
     [<DataRow("\"foo \"sarcastic\" bar\"", "foo \"sarcastic\" bar")>]
     member _.SingleItemParse(input : string, expected : string) =
-        let result = parse input |> get
+        let result = excelStyleCsvParse input |> get
         Assert.AreEqual([expected], result)
 
     [<TestMethod>]
     member _.EmptyStrings2() =
-        let result = parse "," |> get
+        let result = excelStyleCsvParse "," |> get
         Assert.AreEqual([""; ""], result)
 
     [<TestMethod>]
     member _.EmptyStrings3() =
-        let result = parse ",," |> get
+        let result = excelStyleCsvParse ",," |> get
         Assert.AreEqual([""; ""; ""], result)
 
     [<TestMethod>]
     member _.EmptyStringsWithQuotes2() =
-        let result = parse "\"\",\"\"" |> get
+        let result = excelStyleCsvParse "\"\",\"\"" |> get
         Assert.AreEqual([""; ""], result)
 
     [<TestMethod>]
     member _.EmptyStringsWithQuotes3() =
-        let result = parse "\"\",\"\",\"\"" |> get
+        let result = excelStyleCsvParse "\"\",\"\",\"\"" |> get
         Assert.AreEqual([""; ""; ""], result)
 
     [<TestMethod>]
     member _.ParseNoQuotes() =
-        let result = parse "where,is,here"
+        let result = excelStyleCsvParse "where,is,here"
         Assert.AreEqual(Ok["where"; "is"; "here"], result)
 
     [<TestMethod>]
     member _.ParseMixedQuotes() =
-        let result = parse "where,is,\"here\""
+        let result = excelStyleCsvParse "where,is,\"here\""
         Assert.AreEqual(Ok["where"; "is"; "here"], result)
 
     [<TestMethod>]
     member _.ParseAllQuotes() =
-        let result = parse "\"where\",\"is\",\"here\""
+        let result = excelStyleCsvParse "\"where\",\"is\",\"here\""
         Assert.AreEqual(Ok["where"; "is"; "here"], result)
 
     [<TestMethod>]
     member _.DonNotSplitOnComma() =
-        let result = parse "\"where,oh where\",\"is\",\"here\""
+        let result = excelStyleCsvParse "\"where,oh where\",\"is\",\"here\""
         Assert.AreEqual(Ok["where,oh where"; "is"; "here"], result)
 
     [<TestMethod>]
     member _.ParseInternalQuotes() =
-        let result = parse "\"where \"sarcastically\" is here\",\"is\",\"here\"" |> get
+        let result = excelStyleCsvParse "\"where \"sarcastically\" is here\",\"is\",\"here\"" |> get
         Assert.AreEqual(["where \"sarcastically\" is here"; "is"; "here"], result)
