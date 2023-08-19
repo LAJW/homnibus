@@ -157,6 +157,50 @@ type GlueStatuses() =
             TimeSpan.FromDays 3
         |])
 
+    [<TestMethod>]
+    member _.``Glue together when status change occurs on the same day``() =
+        let results =
+            glueStatuses config [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+            ]
+            |> Seq.toList
+
+        Assert.AreEqual(results, [ TimeSpan.FromDays 8; TimeSpan.FromDays 11 ])
+
+    [<TestMethod>]
+    member _.``Glue together when status change occurs on the same day - skip multiple``() =
+        let results =
+            glueStatuses config [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Backlog" }
+                { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+            ]
+            |> Seq.toList
+
+        Assert.AreEqual(results, [ TimeSpan.FromDays 8; TimeSpan.FromDays 11 ])
+
+
 [<TestClass>]
 type CycleTime() =
     let config = Data.config()
@@ -319,3 +363,67 @@ type ExtraStats() =
         Assert.AreEqual(1, countSkips config input)
         Assert.AreEqual(2, countProcessViolations config input)
         Assert.AreEqual(1, countPushbacks config input)
+
+[<TestClass>]
+type PickLastOnGivenDate() =
+    
+    [<TestMethod>]
+    member _.``Empty sequence``() =
+        let results = pickLastOnGivenDate [] |> Seq.toArray
+        CollectionAssert.AreEqual(results, [| |])
+    
+    [<TestMethod>]
+    member _.``Glue together when status change occurs on the same day``() =
+        let results =
+            pickLastOnGivenDate [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+            ]
+            |> Seq.toArray
+
+        CollectionAssert.AreEqual(results, [|
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
+            { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
+            { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
+            { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+            { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+        |])
+
+    [<TestMethod>]
+    member _.``Glue together when status change occurs on the same day - skip multiple``() =
+        let results =
+            pickLastOnGivenDate [
+                { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
+                { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+            ]
+            |> Seq.toArray
+
+        CollectionAssert.AreEqual(results, [|
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
+            { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
+            { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
+            { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+            { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+        |])
