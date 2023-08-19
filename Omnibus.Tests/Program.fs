@@ -555,12 +555,43 @@ type CsvParserTest() =
     let get result =
         match result with
         | Ok value -> value
-        | Error result -> failwith "Returned error"
+        | Error _ -> failwith "Returned error"
     
     [<TestMethod>]
     member _.Lex() =
         let result = lex "where,is,\"here\"" |> Seq.toArray
         CollectionAssert.AreEqual([| "where"; ","; "is"; ","; "\""; "here"; "\"" |], result)
+
+    [<DataTestMethod>]
+    [<DataRow("", "")>]
+    [<DataRow("\"\"", "")>]
+    [<DataRow("foo", "foo")>]
+    [<DataRow("\"foo\"", "foo")>]
+    [<DataRow("\"foo, bar\"", "foo, bar")>]
+    [<DataRow("\"foo \"sarcastic\" bar\"", "foo \"sarcastic\" bar")>]
+    member _.SingleItemParse(input : string, expected : string) =
+        let result = parse input |> get
+        Assert.AreEqual([expected], result)
+
+    [<TestMethod>]
+    member _.EmptyStrings2() =
+        let result = parse "," |> get
+        Assert.AreEqual([""; ""], result)
+
+    [<TestMethod>]
+    member _.EmptyStrings3() =
+        let result = parse ",," |> get
+        Assert.AreEqual([""; ""; ""], result)
+
+    [<TestMethod>]
+    member _.EmptyStringsWithQuotes2() =
+        let result = parse "\"\",\"\"" |> get
+        Assert.AreEqual([""; ""], result)
+
+    [<TestMethod>]
+    member _.EmptyStringsWithQuotes3() =
+        let result = parse "\"\",\"\",\"\"" |> get
+        Assert.AreEqual([""; ""; ""], result)
 
     [<TestMethod>]
     member _.ParseNoQuotes() =

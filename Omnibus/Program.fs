@@ -189,29 +189,34 @@ let parse (row: string) =
     let tokens = row |> lex |> Seq.toArray
     let mutable index = 0
     seq {
+        if tokens.Length = 0 || tokens[0] = "," then yield Ok ""
         while index < tokens.Length do
             let token = tokens[index]
-            match token with
-            | "\"" ->
+            match token, (tokens |> tryItem (index + 1)) with
+            | "\"", _ ->
                 index <- index + 1
                 let mutable word = ""
                 let mutable stop = false
-                while index < tokens.Length && not stop do
-                    let token = tokens[index]
-                    let nextToken = tokens |> Array.tryItem (index + 1)
-                    let nextNextToken = tokens |> Array.tryItem (index + 2)
-                    match nextToken, nextNextToken with
-                    | Some "\"", Some "," ->
-                        yield Ok(word + token)
-                        stop <- true
-                    | Some "\"", None ->
-                        yield Ok(word + token)
-                        stop <- true
-                    | None, None -> yield Error "Malformed input"
-                    | _, _ -> word <- word + token
-                    index <- index + 1
-            | "," -> ()
-            | word -> yield Ok word
+                if tokens |> Array.tryItem index = Some("\"") then
+                    yield Ok("")
+                else
+                    while index < tokens.Length && not stop do
+                        let token = tokens[index]
+                        let nextToken = tokens |> Array.tryItem (index + 1)
+                        let nextNextToken = tokens |> Array.tryItem (index + 2)
+                        match nextToken, nextNextToken with
+                        | Some "\"", Some "," ->
+                            yield Ok(word + token)
+                            stop <- true
+                        | Some "\"", None ->
+                            yield Ok(word + token)
+                            stop <- true
+                        | None, None -> yield Error "Malformed input"
+                        | _, _ -> word <- word + token
+                        index <- index + 1
+            | ",", (Some "," | None) -> yield Ok ""
+            | ",", _ -> ()
+            | word, _ -> yield Ok word
             index <- index + 1
     }
     |> Seq.fold (fun result cell -> monad {
@@ -266,9 +271,10 @@ let main (args : string array) =
         let allStates = Config.allStates config
         let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
         printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last),Process Violations,Skips,Pushbacks"
-        let results = parseCsv path |> enumerate |> Seq.tail |> Seq.map (fun (index, line) -> monad {
+        let results = path |> File.ReadLines |> enumerate |> Seq.tail |> Seq.map (fun (index, rawLine) -> monad {
+            let! line = parse rawLine
             let! ticketNo, statuses =
-                match Array.toList line with
+                match line with
                 | ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses ->
                     Ok(ticketNo, statuses)
                 | _ -> Error "Not enough elements in a row"
