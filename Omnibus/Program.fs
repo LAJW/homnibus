@@ -1,6 +1,8 @@
 ﻿module Omnibus
 
 open System
+open System.IO
+open System.Text.RegularExpressions
 open System.Collections.Generic
 open Microsoft.VisualBasic.FileIO
 open FSharpPlus
@@ -178,6 +180,48 @@ let minCycleTime (config : Config) statuses : TimeSpan =
     |> Option.defaultValue (TimeSpan.FromDays 0)
     |> (+) (TimeSpan.FromDays 1)
 
+let internal regex = Regex("(\"|,|[^\",]+)")
+
+let lex (s: string) =
+    regex.Matches(s) |> Seq.collect (fun m -> m.Captures) |> Seq.map (fun c -> c.Value)
+
+let parse (row: string) =
+    let tokens = row |> lex |> Seq.toArray
+    let mutable index = 0
+    seq {
+        while index < tokens.Length do
+            let token = tokens[index]
+            match token with
+            | "\"" ->
+                index <- index + 1
+                let mutable word = ""
+                let mutable stop = false
+                while index < tokens.Length && not stop do
+                    let token = tokens[index]
+                    let nextToken = tokens |> Array.tryItem (index + 1)
+                    let nextNextToken = tokens |> Array.tryItem (index + 2)
+                    match nextToken, nextNextToken with
+                    | Some "\"", Some "," ->
+                        yield Ok(word + token)
+                        stop <- true
+                    | Some "\"", None ->
+                        yield Ok(word + token)
+                        stop <- true
+                    | None, None -> yield Error "Malformed input"
+                    | _, _ -> word <- word + token
+                    index <- index + 1
+            | "," -> ()
+            | word -> yield Ok word
+            index <- index + 1
+    }
+    |> Seq.fold (fun result cell -> monad {
+        let! result = result
+        let! cell = cell
+        return result @ [ cell ]
+    }) (Ok [])
+
+let enumerate = Seq.zip (Seq.initInfinite id)
+
 [<EntryPoint>]
 let main (args : string array) =
     let config = {
@@ -216,8 +260,6 @@ let main (args : string array) =
             "Ready for Release"
         ]
     }
-    
-    let enumerate = Seq.zip (Seq.initInfinite id)
     
     monad' {
         do! Config.validate config

@@ -549,3 +549,40 @@ type MaxCycleTime() =
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
         Assert.AreEqual(result, TimeSpan.FromDays 16)
+
+[<TestClass>]
+type CsvParserTest() =
+    let get result =
+        match result with
+        | Ok value -> value
+        | Error result -> failwith "Returned error"
+    
+    [<TestMethod>]
+    member _.Lex() =
+        let result = lex "where,is,\"here\"" |> Seq.toArray
+        CollectionAssert.AreEqual([| "where"; ","; "is"; ","; "\""; "here"; "\"" |], result)
+
+    [<TestMethod>]
+    member _.ParseNoQuotes() =
+        let result = parse "where,is,here"
+        Assert.AreEqual(Ok["where"; "is"; "here"], result)
+
+    [<TestMethod>]
+    member _.ParseMixedQuotes() =
+        let result = parse "where,is,\"here\""
+        Assert.AreEqual(Ok["where"; "is"; "here"], result)
+
+    [<TestMethod>]
+    member _.ParseAllQuotes() =
+        let result = parse "\"where\",\"is\",\"here\""
+        Assert.AreEqual(Ok["where"; "is"; "here"], result)
+
+    [<TestMethod>]
+    member _.DonNotSplitOnComma() =
+        let result = parse "\"where,oh where\",\"is\",\"here\""
+        Assert.AreEqual(Ok["where,oh where"; "is"; "here"], result)
+
+    [<TestMethod>]
+    member _.ParseInternalQuotes() =
+        let result = parse "\"where \"sarcastically\" is here\",\"is\",\"here\"" |> get
+        Assert.AreEqual(["where \"sarcastically\" is here"; "is"; "here"], result)
