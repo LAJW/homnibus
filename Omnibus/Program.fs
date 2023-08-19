@@ -233,7 +233,57 @@ let excelStyleCsvParse (row: string) =
         return result @ [ cell ]
     }) (Ok [])
 
-let enumerate = Seq.zip (Seq.initInfinite id)
+let consoleReadAllLines() =
+     let input = Console.In
+     seq {
+         let mutable line = input.ReadLine()
+         while line <> null do
+           yield line
+           line <- input.ReadLine()
+     }
+
+let sequenceResults (results : Result<'a, 'b> seq) : Result<'a list, 'b list> =
+    (Ok [], results) ||> Seq.fold (fun result item ->
+        match result, item with
+        | Ok result, Ok state -> Ok(result @ [state])
+        | Ok _, Error error -> Error [error]
+        | Error errors, Error error -> Error(errors @ [error])
+        | Error errors, Ok _ -> Error errors
+    )
+     
+let processLine (config : Config) (allStates : string Set) (lineNumber : int) (rawLine : string) = monad {
+    let! line = excelStyleCsvParse rawLine
+    let! ticketNo, statuses =
+        match line with
+        | ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses ->
+            Ok(ticketNo, statuses)
+        | _ -> Error "Not enough elements in a row"
+    let! statuses =
+        statuses
+        |> List.chunkBySize 2
+        |> Seq.map (function
+            [state; date] ->
+                monad {
+                    let! status = Status.create state date
+                    if not (allStates.Contains status.State) then
+                        do! Error $"Unknown state {status.State}"
+                    status
+                }
+            | _ -> failwith "Unreachable")
+        |> sequenceResults
+        |> Result.mapError (fun errors ->
+            let summary = errors |> Seq.distinct |> join ", "
+            $"Line {lineNumber}: {ticketNo} - {summary}"
+        )
+    {|
+        TicketNo = ticketNo
+        CycleTime = cycleTime config statuses
+        MaxCycleTime = maxCycleTime config statuses
+        MinCycleTime = minCycleTime config statuses
+        Skips = countSkips config statuses
+        ProcessViolations = countProcessViolations config statuses
+    |}
+}
 
 [<EntryPoint>]
 let main (args : string array) =
@@ -277,64 +327,38 @@ let main (args : string array) =
     monad' {
         do! Config.validate config
         let allStates = Config.allStates config
-        let! path = args |> tryHead |> Option.toResultWith "Missing input file name"
-        printfn "Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last),Process Violations,Skips,Pushbacks"
-        let results = path |> File.ReadLines |> enumerate |> Seq.tail |> Seq.map (fun (index, rawLine) -> monad {
-            let! line = excelStyleCsvParse rawLine
-            let! ticketNo, statuses =
-                match line with
-                | ticketNo :: _status :: _daysInCC :: _ticketType :: _priority :: _component :: _epicKey :: _summary :: _date :: _flagged :: _label :: _storyPoints :: _createdDate :: statuses ->
-                    Ok(ticketNo, statuses)
-                | _ -> Error "Not enough elements in a row"
-            let! statuses =
-                statuses
-                |> List.chunkBySize 2
-                |> Seq.map (function
-                    [state; date] ->
-                        monad {
-                            let! status = Status.create state date
-                            if not (allStates.Contains status.State) then
-                                do! Error $"Unknown state {status.State}"
-                            status
-                        }
-                    | _ -> failwith "Unreachable")
-                |> Seq.fold (fun (maybeResult : Result<Status list, string list>) maybeStatus ->
-                    match maybeResult, maybeStatus with
-                    | Ok result, Ok state -> Ok(result @ [state])
-                    | Ok _, Error error -> Error [error]
-                    | Error errors, Error error -> Error(errors @ [error])
-                    | Error errors, Ok _ -> Error errors
-                ) (Ok [])
-                |> Result.mapError (fun errors ->
-                    let summary = errors |> Seq.distinct |> join ", "
-                    $"Line {index + 1}: {ticketNo} - {summary}"
-                )
-            {|
-                TicketNo = ticketNo
-                CycleTime = cycleTime config statuses
-                MaxCycleTime = maxCycleTime config statuses
-                MinCycleTime = minCycleTime config statuses
-                Skips = countSkips config statuses
-                ProcessViolations = countProcessViolations config statuses
-            |}
-        })
-        let successes = results |> Seq.choose Result.toOption
+        let input, maybeOutputFilePath =
+            match toList args with
+            | inputFilePath :: outputFilePath :: _ -> File.ReadLines inputFilePath, Some outputFilePath
+            | inputFilePath :: _ -> File.ReadLines inputFilePath, None
+            | [ ] -> consoleReadAllLines(), None
+        let results =
+            input
+            |> Seq.tail
+            |> Seq.mapi (fun index -> processLine config allStates (index + 2))
+            |> Seq.toList
 
-        successes
-        |> sortBy (fun stats -> stats.CycleTime)
-        |> iter (fun stats ->
-            [
-                stats.TicketNo
-                stats.CycleTime.Days.ToString()
-                stats.MaxCycleTime.Days.ToString()
-                stats.MinCycleTime.Days.ToString()
-                stats.Skips.ToString()
-                stats.ProcessViolations.ToString()
-                (stats.ProcessViolations - stats.Skips).ToString()
-            ]
-            |> join ","
-            |> printfn "%s"
-        )
+        let output =
+            results
+            |> Seq.choose Result.toOption
+            |> sortBy (fun stats -> stats.CycleTime)
+            |> Seq.map (fun stats ->
+                [
+                    stats.TicketNo
+                    stats.CycleTime.Days.ToString()
+                    stats.MaxCycleTime.Days.ToString()
+                    stats.MinCycleTime.Days.ToString()
+                    stats.Skips.ToString()
+                    stats.ProcessViolations.ToString()
+                    (stats.ProcessViolations - stats.Skips).ToString()
+                ]
+                |> join ","
+            )
+            |> Seq.append ["Ticket ID,Cycle Time V3,Cycle Time (since first),Cycle Time (since last),Process Violations,Skips,Pushbacks"]
+        
+        match maybeOutputFilePath with
+        | Some outputFilePath -> File.WriteAllLines(outputFilePath, output)
+        | None -> output |> iter (printfn "%s")
         
         let errors = results |> Seq.choose (function Ok _ -> None | Error err -> Some err)
         
@@ -342,7 +366,7 @@ let main (args : string array) =
             Console.Error.WriteLine("\nErrors:")
             for error in errors do Console.Error.WriteLine(error)
         
-        if successes |> Seq.isEmpty then do! Error("No successful rows have been processed")
+        if Seq.isEmpty output then do! Error("No successful rows have been processed")
     }
     |> function
         | Ok () -> 0
