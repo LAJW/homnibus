@@ -80,7 +80,7 @@ type GlueStatuses() =
             ]
             |> Seq.toList
         
-        Assert.AreEqual(results, [])
+        Assert.AreEqual([], results)
 
     [<TestMethod>]
     member _.SingleStep() =
@@ -92,7 +92,7 @@ type GlueStatuses() =
             ]
             |> Seq.toList
         
-        Assert.AreEqual(results, [TimeSpan.FromDays(2)])
+        Assert.AreEqual([TimeSpan.FromDays(2)], results)
 
     [<TestMethod>]
     member _.StandardFlow() =
@@ -108,7 +108,7 @@ type GlueStatuses() =
             ]
             |> Seq.toList
         
-        Assert.AreEqual(results, [TimeSpan.FromDays 5])
+        Assert.AreEqual([TimeSpan.FromDays 5], results)
 
     [<TestMethod>]
     member _.FlowWithBreaks() =
@@ -129,13 +129,13 @@ type GlueStatuses() =
             ]
             |> Seq.toArray
         
-        CollectionAssert.AreEqual(results, [|
+        CollectionAssert.AreEqual([|
             TimeSpan.FromDays 1
             TimeSpan.FromDays 2
             TimeSpan.FromDays 3
             TimeSpan.FromDays 4
             TimeSpan.FromDays 5
-        |])
+        |], results)
 
     [<TestMethod>]
     member _.FlowWithLessBreaks() =
@@ -152,10 +152,10 @@ type GlueStatuses() =
             ]
             |> Seq.toArray
         
-        CollectionAssert.AreEqual(results, [|
+        CollectionAssert.AreEqual([|
             TimeSpan.FromDays 2
             TimeSpan.FromDays 3
-        |])
+        |], results)
 
     [<TestMethod>]
     member _.``Glue together when status change occurs on the same day``() =
@@ -176,7 +176,7 @@ type GlueStatuses() =
             ]
             |> Seq.toList
 
-        Assert.AreEqual(results, [ TimeSpan.FromDays 8; TimeSpan.FromDays 11 ])
+        Assert.AreEqual([ TimeSpan.FromDays 8; TimeSpan.FromDays 11 ], results)
 
     [<TestMethod>]
     member _.``Glue together when status change occurs on the same day - skip multiple``() =
@@ -198,7 +198,7 @@ type GlueStatuses() =
             ]
             |> Seq.toList
 
-        Assert.AreEqual(results, [ TimeSpan.FromDays 8; TimeSpan.FromDays 11 ])
+        Assert.AreEqual([ TimeSpan.FromDays 8; TimeSpan.FromDays 11 ], results)
 
     [<TestMethod>]
     member _.SkippedNonWipStateSimple() =
@@ -224,7 +224,7 @@ type GlueStatuses() =
             ]
             |> Seq.toList
         
-        Assert.AreEqual(results, [TimeSpan.FromDays 5])
+        Assert.AreEqual([TimeSpan.FromDays 5], results)
 
     [<TestMethod>]
     member _.RealExample() =
@@ -414,7 +414,7 @@ type PickLastOnGivenDate() =
     [<TestMethod>]
     member _.``Empty sequence``() =
         let results = pickInProgressAndLastOnGivenDate config [] |> Seq.toArray
-        CollectionAssert.AreEqual(results, [| |])
+        CollectionAssert.AreEqual([| |], results)
     
     [<TestMethod>]
     member _.``Glue together when status change occurs on the same day``() =
@@ -435,7 +435,7 @@ type PickLastOnGivenDate() =
             ]
             |> Seq.toArray
 
-        CollectionAssert.AreEqual(results, [|
+        CollectionAssert.AreEqual([|
             { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
             { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
             { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
@@ -444,7 +444,7 @@ type PickLastOnGivenDate() =
             { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
             { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
-        |])
+        |], results)
 
     [<TestMethod>]
     member _.``Glue together when status change occurs on the same day - skip multiple``() =
@@ -461,7 +461,7 @@ type PickLastOnGivenDate() =
             ]
             |> Seq.toArray
 
-        CollectionAssert.AreEqual(results, [|
+        CollectionAssert.AreEqual([|
             { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
             { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
             { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
@@ -470,7 +470,7 @@ type PickLastOnGivenDate() =
             { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
             { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
-        |])
+        |], results)
 
     [<TestMethod>]
     member _.``Pick when in progress occurs before the last state of the day``() =
@@ -501,7 +501,7 @@ type MinCycleTime() =
     [<TestMethod>]
     member _.``Zero statuses should have minimum cycle time of 1 day``() =
         let result = minCycleTime config []
-        Assert.AreEqual(result, TimeSpan.FromDays 1)
+        Assert.AreEqual(TimeSpan.FromDays 1, result)
 
     [<TestMethod>]
     member _.``Lack of items in progress - ticket was immediately moved to done``() =
@@ -509,7 +509,7 @@ type MinCycleTime() =
             { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 1)
+        Assert.AreEqual(TimeSpan.FromDays 1, result)
 
     [<TestMethod>]
     member _.``Calculate cycle time from the last in progress (if exists) + 1``() =
@@ -518,7 +518,7 @@ type MinCycleTime() =
             { Date = DateTime.Parse "2020-01-10"; State = "In Progress" }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 11)
+        Assert.AreEqual(TimeSpan.FromDays 11, result)
 
     [<DataTestMethod>]
     [<DataRow("In Progress")>]
@@ -532,7 +532,7 @@ type MinCycleTime() =
             { Date = DateTime.Parse "2020-01-10"; State = state }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 11)
+        Assert.AreEqual(TimeSpan.FromDays 11, result)
 
     [<TestMethod>]
     member _.``Pick progress in order of as according to the workflow``() =
@@ -542,7 +542,7 @@ type MinCycleTime() =
             { Date = DateTime.Parse "2020-01-15"; State = "In Review" }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 11)
+        Assert.AreEqual(TimeSpan.FromDays 11, result)
 
     [<TestMethod>]
     member _.``Pick the last time something went into progress``() =
@@ -553,7 +553,7 @@ type MinCycleTime() =
             { Date = DateTime.Parse "2020-01-15"; State = "In Progress" }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 6)
+        Assert.AreEqual(TimeSpan.FromDays 6, result)
 
 [<TestClass>]
 type MaxCycleTime() =
@@ -562,7 +562,7 @@ type MaxCycleTime() =
     [<TestMethod>]
     member _.``Zero statuses should have minimum cycle time of 1 day``() =
         let result = maxCycleTime config []
-        Assert.AreEqual(result, TimeSpan.FromDays 1)
+        Assert.AreEqual(TimeSpan.FromDays 1, result)
 
     [<TestMethod>]
     member _.``Lack of items in progress - ticket was immediately moved to done``() =
@@ -570,7 +570,7 @@ type MaxCycleTime() =
             { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 1)
+        Assert.AreEqual(TimeSpan.FromDays 1, result)
 
     [<TestMethod>]
     member _.``Calculate cycle time from the last in progress (if exists) + 1``() =
@@ -579,7 +579,7 @@ type MaxCycleTime() =
             { Date = DateTime.Parse "2020-01-10"; State = "In Progress" }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 11)
+        Assert.AreEqual(TimeSpan.FromDays 11, result)
 
     [<DataTestMethod>]
     [<DataRow("In Progress")>]
@@ -593,7 +593,7 @@ type MaxCycleTime() =
             { Date = DateTime.Parse "2020-01-10"; State = state }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 11)
+        Assert.AreEqual(TimeSpan.FromDays 11, result)
 
     [<TestMethod>]
     member _.``Pick progress in order of as according to the workflow``() =
@@ -603,7 +603,7 @@ type MaxCycleTime() =
             { Date = DateTime.Parse "2020-01-15"; State = "In Review" }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 11)
+        Assert.AreEqual(TimeSpan.FromDays 11, result)
 
     [<TestMethod>]
     member _.``Pick the first time something went into progress``() =
@@ -614,7 +614,7 @@ type MaxCycleTime() =
             { Date = DateTime.Parse "2020-01-15"; State = "In Progress" }
             { Date = DateTime.Parse "2020-01-20"; State = "Done" }
         ]
-        Assert.AreEqual(result, TimeSpan.FromDays 16)
+        Assert.AreEqual(TimeSpan.FromDays 16, result)
 
 [<TestClass>]
 type CsvParserTest() =
