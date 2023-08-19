@@ -83,18 +83,26 @@ module Status =
         | false, _ ->
             Error($"Invalid date: {date}")
 
-let rec pickLastOnGivenDate (statuses : Status seq) : Status seq =
-    match statuses |> Seq.tryHead with
-    | None -> Seq.empty
-    | Some head ->
-        let lastOnGivenDate = statuses |> Seq.takeWhile(fun status -> status.Date = head.Date) |> Seq.last
-        let rest = statuses |> Seq.skipWhile(fun status -> status.Date = head.Date)
-        Seq.append [ lastOnGivenDate ] (pickLastOnGivenDate rest)
+let pickInProgressAndLastOnGivenDate (config: Config) (statuses : Status seq) : Status seq =
+    statuses
+    |> Seq.chunkBy Status.date
+    |> Seq.map snd
+    |> Seq.collect (fun group ->
+        let last = group |> Seq.last
+        match group |> Seq.tryFind (Status.state >> config.InProgress.Contains) with
+        | Some status when status = last -> [status]
+        | Some status -> [status; last]
+        | None -> [last]
+    )
 
 let glueStatuses (config : Config) (statuses : Status list) =
     seq {
-        let mutable lastStart : DateTime option = None
-        for before, after in statuses |> pickLastOnGivenDate |> Seq.pairwise do
+        let mutable lastStart =
+            statuses
+            |> tryHead
+            |> filter (Status.state >> config.InProgress.Contains)
+            |> Option.map Status.date
+        for before, after in statuses |> pickInProgressAndLastOnGivenDate config |> Seq.pairwise do
             match config.InProgress.Contains before.State, config.InProgress.Contains after.State, lastStart with
             | false, true, None ->
                 lastStart <- Some after.Date

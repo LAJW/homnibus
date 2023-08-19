@@ -200,6 +200,49 @@ type GlueStatuses() =
 
         Assert.AreEqual(results, [ TimeSpan.FromDays 8; TimeSpan.FromDays 11 ])
 
+    [<TestMethod>]
+    member _.SkippedNonWipStateSimple() =
+        let results =
+            glueStatuses config [
+                { Date = DateTime.Parse "2020-01-01"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-04"; State = "Done" }
+            ]
+            |> Seq.toList
+        
+        Assert.AreEqual([TimeSpan.FromDays 3], results)
+
+    [<TestMethod>]
+    member _.SkippedNonWipStateMany() =
+        let results =
+            glueStatuses config [
+                { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
+                { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
+                { Date = DateTime.Parse "2020-01-04"; State = "In Review" }
+                { Date = DateTime.Parse "2020-01-05"; State = "Merge & environment QA" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Done" }
+            ]
+            |> Seq.toList
+        
+        Assert.AreEqual(results, [TimeSpan.FromDays 5])
+
+    [<TestMethod>]
+    member _.RealExample() =
+        let results =
+            glueStatuses config [
+                { Date = DateTime.Parse "13/03/2023"; State = "Ready" }
+                { Date = DateTime.Parse "29/03/2023"; State = "In Progress" }
+                { Date = DateTime.Parse "29/03/2023"; State = "Ready" }
+                { Date = DateTime.Parse "04/04/2023"; State = "In Progress" }
+                { Date = DateTime.Parse "06/04/2023"; State = "Ready" }
+                { Date = DateTime.Parse "13/04/2023"; State = "Done" }
+            ] |> Seq.toList
+        
+        Assert.AreEqual([
+            TimeSpan.FromDays 0
+            TimeSpan.FromDays 2
+        ], results)
+
 
 [<TestClass>]
 type CycleTime() =
@@ -366,16 +409,17 @@ type ExtraStats() =
 
 [<TestClass>]
 type PickLastOnGivenDate() =
+    let config = Data.config
     
     [<TestMethod>]
     member _.``Empty sequence``() =
-        let results = pickLastOnGivenDate [] |> Seq.toArray
+        let results = pickInProgressAndLastOnGivenDate config [] |> Seq.toArray
         CollectionAssert.AreEqual(results, [| |])
     
     [<TestMethod>]
     member _.``Glue together when status change occurs on the same day``() =
         let results =
-            pickLastOnGivenDate [
+            pickInProgressAndLastOnGivenDate config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
@@ -405,7 +449,7 @@ type PickLastOnGivenDate() =
     [<TestMethod>]
     member _.``Glue together when status change occurs on the same day - skip multiple``() =
         let results =
-            pickLastOnGivenDate [
+            pickInProgressAndLastOnGivenDate config [
                 { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-02"; State = "In Progress" }
                 { Date = DateTime.Parse "2020-01-04"; State = "Pending Review" }
@@ -427,6 +471,28 @@ type PickLastOnGivenDate() =
             { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
         |])
+
+    [<TestMethod>]
+    member _.``Pick when in progress occurs before the last state of the day``() =
+        let results =
+            pickInProgressAndLastOnGivenDate config [
+                { Date = DateTime.Parse "13/03/2023"; State = "Ready" }
+                { Date = DateTime.Parse "29/03/2023"; State = "In Progress" }
+                { Date = DateTime.Parse "29/03/2023"; State = "In Review" }
+                { Date = DateTime.Parse "29/03/2023"; State = "Ready" }
+                { Date = DateTime.Parse "04/04/2023"; State = "In Progress" }
+                { Date = DateTime.Parse "06/04/2023"; State = "Ready" }
+                { Date = DateTime.Parse "13/04/2023"; State = "Done" }
+            ] |> Seq.toList
+        
+        Assert.AreEqual([
+            { Date = DateTime.Parse "13/03/2023"; State = "Ready" }
+            { Date = DateTime.Parse "29/03/2023"; State = "In Progress" }
+            { Date = DateTime.Parse "29/03/2023"; State = "Ready" }
+            { Date = DateTime.Parse "04/04/2023"; State = "In Progress" }
+            { Date = DateTime.Parse "06/04/2023"; State = "Ready" }
+            { Date = DateTime.Parse "13/04/2023"; State = "Done" }
+        ], results)
 
 [<TestClass>]
 type MinCycleTime() =
