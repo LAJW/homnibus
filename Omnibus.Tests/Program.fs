@@ -5,8 +5,8 @@ open System
 
 open Microsoft.VisualStudio.TestTools.UnitTesting
 
-module Data =
-    let config() = {
+type Data() =
+    static member config = {
         Workflow = [
             "Ready", "In Progress"
             "In Progress", "Pending Review"
@@ -33,7 +33,7 @@ module Data =
 
 [<TestClass>]
 type ConfigTest() =
-    let config = Data.config()
+    let config = Data.config
 
     [<TestMethod>]
     member _.EndStatuses() =
@@ -69,7 +69,7 @@ type ConfigTest() =
 
 [<TestClass>]
 type GlueStatuses() =
-    let config = Data.config()
+    let config = Data.config
 
     [<TestMethod>]
     member _.Immediate() =
@@ -203,7 +203,7 @@ type GlueStatuses() =
 
 [<TestClass>]
 type CycleTime() =
-    let config = Data.config()
+    let config = Data.config
 
     [<TestMethod>]
     member _.Immediate() =
@@ -280,7 +280,7 @@ type CycleTime() =
 
 [<TestClass>]
 type ExtraStats() =
-    let config = Data.config()
+    let config = Data.config
 
     [<TestMethod>]
     member _.Immediate() =
@@ -427,3 +427,125 @@ type PickLastOnGivenDate() =
             { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
         |])
+
+[<TestClass>]
+type MinCycleTime() =
+    let config = Data.config
+
+    [<TestMethod>]
+    member _.``Zero statuses should have minimum cycle time of 1 day``() =
+        let result = minCycleTime config []
+        Assert.AreEqual(result, TimeSpan.FromDays 1)
+
+    [<TestMethod>]
+    member _.``Lack of items in progress - ticket was immediately moved to done``() =
+        let result = minCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 1)
+
+    [<TestMethod>]
+    member _.``Calculate cycle time from the last in progress (if exists) + 1``() =
+        let result = minCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-10"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 11)
+
+    [<DataTestMethod>]
+    [<DataRow("In Progress")>]
+    [<DataRow("Pending Review")>]
+    [<DataRow("In Review")>]
+    [<DataRow("Merge & environment QA")>]
+    [<DataRow("Ready for release")>]
+    member _.``Fall back to picking any other progress-like state``(state : string) =
+        let result = minCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-10"; State = state }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 11)
+
+    [<TestMethod>]
+    member _.``Pick progress in order of as according to the workflow``() =
+        let result = minCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-10"; State = "Pending Review" }
+            { Date = DateTime.Parse "2020-01-15"; State = "In Review" }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 11)
+
+    [<TestMethod>]
+    member _.``Pick the last time something went into progress``() =
+        let result = minCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-05"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-10"; State = "In Review" }
+            { Date = DateTime.Parse "2020-01-15"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 6)
+
+[<TestClass>]
+type MaxCycleTime() =
+    let config = Data.config
+
+    [<TestMethod>]
+    member _.``Zero statuses should have minimum cycle time of 1 day``() =
+        let result = maxCycleTime config []
+        Assert.AreEqual(result, TimeSpan.FromDays 1)
+
+    [<TestMethod>]
+    member _.``Lack of items in progress - ticket was immediately moved to done``() =
+        let result = maxCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-22"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 1)
+
+    [<TestMethod>]
+    member _.``Calculate cycle time from the last in progress (if exists) + 1``() =
+        let result = maxCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-10"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 11)
+
+    [<DataTestMethod>]
+    [<DataRow("In Progress")>]
+    [<DataRow("Pending Review")>]
+    [<DataRow("In Review")>]
+    [<DataRow("Merge & environment QA")>]
+    [<DataRow("Ready for release")>]
+    member _.``Fall back to picking any other progress-like state``(state : string) =
+        let result = maxCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-10"; State = state }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 11)
+
+    [<TestMethod>]
+    member _.``Pick progress in order of as according to the workflow``() =
+        let result = maxCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-10"; State = "Pending Review" }
+            { Date = DateTime.Parse "2020-01-15"; State = "In Review" }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 11)
+
+    [<TestMethod>]
+    member _.``Pick the first time something went into progress``() =
+        let result = maxCycleTime config [
+            { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
+            { Date = DateTime.Parse "2020-01-05"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-10"; State = "In Review" }
+            { Date = DateTime.Parse "2020-01-15"; State = "In Progress" }
+            { Date = DateTime.Parse "2020-01-20"; State = "Done" }
+        ]
+        Assert.AreEqual(result, TimeSpan.FromDays 16)
