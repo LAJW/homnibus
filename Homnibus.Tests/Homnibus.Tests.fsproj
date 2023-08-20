@@ -3,6 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net7.0</TargetFramework>
         <OutputType>Library</OutputType>
+        <RootNamespace>Omnibus.Tests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -10,7 +11,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Omnibus\Omnibus.fsproj" />
+      <ProjectReference Include="..\Homnibus\Homnibus.fsproj" />
     </ItemGroup>
 
     <ItemGroup>

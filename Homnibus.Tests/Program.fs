@@ -1,6 +1,6 @@
-﻿namespace Omnibus.Test
+﻿namespace Homnibus.Test
 
-open Omnibus
+open Homnibus
 open System
 
 open Microsoft.VisualStudio.TestTools.UnitTesting

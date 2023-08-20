@@ -1,4 +1,4 @@
-﻿module Omnibus
+﻿module Homnibus
 
 open System
 open System.IO

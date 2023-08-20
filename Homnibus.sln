@@ -1,8 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Omnibus", "Omnibus\Omnibus.fsproj", "{74480C94-9D80-41EE-B50B-72BC5A81675F}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Homnibus", "Homnibus\Homnibus.fsproj", "{74480C94-9D80-41EE-B50B-72BC5A81675F}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Omnibus.Tests", "Omnibus.Tests\Omnibus.Tests.fsproj", "{0D2DD3F1-D842-4B40-BCFA-EF6E23BF6050}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Homnibus.Tests", "Homnibus.Tests\Homnibus.Tests.fsproj", "{0D2DD3F1-D842-4B40-BCFA-EF6E23BF6050}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
