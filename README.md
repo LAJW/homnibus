@@ -14,6 +14,19 @@ Gives you:
 - Number of times the ticket was pushed back against the flow of the process
 - Number of times the ticket skipped over steps in the process
 
+## Building
+
+- Requires [dotnet core 7.0](https://dotnet.microsoft.com/en-us/download/dotnet/7.0), which you can download from
+  Microsoft's website.
+
+In terminal:
+```powershell
+cd homnibus/Homnibus
+dotnet build
+```
+
+The binary will appear in the `homnibus/Homnibus/bin` directory.
+
 ## Configuration
 
 Process is defined in the configuration (for now hard-coded in Homnibus/Program.fs). Yaml-based configuration is coming
@@ -23,7 +36,13 @@ soon™.
 
 ### Read from input file, write to output file
 
-```powershell
+After just compiled with dotnet core
+```bash
+dotnet run input.csv
+```
+
+or (when using the binary directly)
+```bash
 ./Homnibus input.csv output.csv
 ```
 
@@ -34,8 +53,11 @@ treated as fatal.
 
 For combining with other tools in powershell scripts
 
-```powershell
-Get-Content input.csv | ./Homnibus > output.csv
+```bash
+cat input.csv | ./Homnibus > output.csv
+```
 
-Get-Content input.csv | ./Homnibus | My-Other-Tool
+Or, if you wish to pipe the output to `my-custom-tool`
+```bash
+cat input.csv | ./Homnibus | my-custom-tool
 ```
