@@ -683,3 +683,53 @@ type CsvParserTest() =
     member _.ParseInternalQuotes() =
         let result = excelStyleCsvParse "\"where \"sarcastically\" is here\",\"is\",\"here\"" |> get
         Assert.AreEqual(["where \"sarcastically\" is here"; "is"; "here"], result)
+
+[<TestClass>]
+type SequenceResultsTest() =
+    
+    [<TestMethod>]
+    member _.EmptyList() =
+        Assert.AreEqual(Ok[], sequenceResults [])
+    
+    [<TestMethod>]
+    member _.SingleOk() =
+        Assert.AreEqual(Ok["foo"], sequenceResults [Ok("foo")])
+
+    [<TestMethod>]
+    member _.SingleError() =
+        Assert.AreEqual(Error["foo"], sequenceResults [Error("foo")])
+
+    [<TestMethod>]
+    member _.MultipleOks() =
+        Assert.AreEqual(
+            Ok["foo"; "bar"; "baz"],
+            sequenceResults [Ok "foo"; Ok "bar"; Ok "baz"])
+
+    [<TestMethod>]
+    member _.MultipleErrors() =
+        Assert.AreEqual(
+            Error ["foo"; "bar"; "baz"],
+            sequenceResults [Error "foo"; Error  "bar"; Error  "baz"])
+
+    [<TestMethod>]
+    member _.SingleErrorAmongSuccesses() =
+        Assert.AreEqual(
+            Error ["foobarbaz"],
+            sequenceResults [Ok "foo"; Ok "bar"; Error "foobarbaz"; Ok "baz"])
+
+    [<TestMethod>]
+    member _.MultipleErrorsAmongSuccesses() =
+        let result = sequenceResults [Ok "foo"; Ok "bar"; Error "foobarbaz"; Ok "baz"; Error "rhubarb"]
+        Assert.AreEqual(Error ["foobarbaz"; "rhubarb"], result)
+
+[<TestClass>]
+type ProcessLineTest() =
+    let config = Data.config
+    let allStates = config |> Config.allStates
+
+    [<TestMethod>]
+    member _.RealExample() =
+        let input = """ABC-8244,"Done","5","Story","Standard","ABC","","[ABC] Some kind of bug","2023-08-01","","Incident","8","27-06-2023","Ready","27-06-2023","In Progress","13-07-2023","Pending Review","25-07-2023","In Review","26-07-2023","Merge & environment QA","26-07-2023","Ready for release","27-07-2023","Done",27-07-2023"""
+        match processLine config allStates 1 input with
+        | Error message -> Assert.Fail($"Got Error: {message}")
+        | Ok result -> Assert.AreEqual(TimeSpan.FromDays 15, result.CycleTime)
