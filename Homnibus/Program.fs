@@ -266,6 +266,7 @@ let processLine (config : Config) (allStates : string Set) (lineNumber : int) (r
         | _ -> Error "Not enough elements in a row"
     let! statuses =
         statuses
+        |> List.takeWhile((<>) "")
         |> List.chunkBySize 2
         |> Seq.map (function
             [state; date] ->
