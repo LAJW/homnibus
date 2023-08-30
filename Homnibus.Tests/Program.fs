@@ -8,26 +8,28 @@ open Microsoft.VisualStudio.TestTools.UnitTesting
 type Data() =
     static member config = {
         Workflow = [
+            "To be refined", "Ready"
             "Ready", "In Progress"
             "In Progress", "Pending Review"
             "Pending Review", "In Review"
             "In Review", "Merge & environment QA"
-            "Merge & environment QA", "Ready for release"
-            "Ready for release", "Done"
+            "Merge & environment QA", "Ready for Release"
+            "Ready for Release", "Done"
             
+            "To be refined", "Ready"
             "Ready", "Archived"
             "In Progress", "Archived"
             "Pending Review", "Archived"
             "In Review", "Archived"
             "Merge & environment QA", "Archived"
-            "Ready for release", "Archived"
+            "Ready for Release", "Archived"
         ]
         InProgress = Set [
             "In Progress"
             "Pending Review"
             "In Review"
             "Merge & environment QA"
-            "Ready for release"
+            "Ready for Release"
         ]
     }
 
@@ -58,14 +60,15 @@ type ConfigTest() =
     [<TestMethod>]
     member _.StateOrder() =
         let order = Config.stateOrder config
-        Assert.AreEqual(1, order["Ready"])
-        Assert.AreEqual(2, order["In Progress"])
-        Assert.AreEqual(3, order["Pending Review"])
-        Assert.AreEqual(4, order["In Review"])
-        Assert.AreEqual(5, order["Merge & environment QA"])
-        Assert.AreEqual(6, order["Ready for release"])
-        Assert.AreEqual(7, order["Done"])
-        Assert.AreEqual(7, order["Archived"])
+        Assert.AreEqual(1, order["To be refined"])
+        Assert.AreEqual(2, order["Ready"])
+        Assert.AreEqual(3, order["In Progress"])
+        Assert.AreEqual(4, order["Pending Review"])
+        Assert.AreEqual(5, order["In Review"])
+        Assert.AreEqual(6, order["Merge & environment QA"])
+        Assert.AreEqual(7, order["Ready for Release"])
+        Assert.AreEqual(8, order["Done"])
+        Assert.AreEqual(8, order["Archived"])
 
 [<TestClass>]
 type GlueStatuses() =
@@ -103,7 +106,7 @@ type GlueStatuses() =
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
                 { Date = DateTime.Parse "2020-01-04"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-05"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-06"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-07"; State = "Done" }
             ]
             |> Seq.toList
@@ -123,7 +126,7 @@ type GlueStatuses() =
                 { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
                 { Date = DateTime.Parse "2020-01-15"; State = "Ready" }
-                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-21"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Done" }
             ]
@@ -147,7 +150,7 @@ type GlueStatuses() =
                 { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-05"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-06"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-07"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-08"; State = "Done" }
             ]
             |> Seq.toArray
@@ -170,7 +173,7 @@ type GlueStatuses() =
                 { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
                 { Date = DateTime.Parse "2020-01-16"; State = "Ready" }
-                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Done" }
             ]
@@ -192,7 +195,7 @@ type GlueStatuses() =
                 { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
                 { Date = DateTime.Parse "2020-01-16"; State = "Ready" }
-                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Done" }
             ]
@@ -219,7 +222,7 @@ type GlueStatuses() =
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
                 { Date = DateTime.Parse "2020-01-04"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-05"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-06"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-07"; State = "Done" }
             ]
             |> Seq.toList
@@ -278,7 +281,7 @@ type CycleTime() =
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
                 { Date = DateTime.Parse "2020-01-04"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-05"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-06"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-07"; State = "Done" }
             ]
         
@@ -297,7 +300,7 @@ type CycleTime() =
                 { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
                 { Date = DateTime.Parse "2020-01-15"; State = "Ready" }
-                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-21"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Done" }
             ]
@@ -315,7 +318,7 @@ type CycleTime() =
                 { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-05"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-06"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-07"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-08"; State = "Done" }
             ]
         
@@ -359,7 +362,7 @@ type ExtraStats() =
                 { Date = DateTime.Parse "2020-01-03"; State = "Pending Review" }
                 { Date = DateTime.Parse "2020-01-04"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-05"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-06"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-06"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-07"; State = "Done" }
             ]
         
@@ -380,7 +383,7 @@ type ExtraStats() =
                 { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
                 { Date = DateTime.Parse "2020-01-15"; State = "Ready" }
-                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-21"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Done" }
             ]
@@ -399,7 +402,7 @@ type ExtraStats() =
                 { Date = DateTime.Parse "2020-01-04"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-05"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-06"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-07"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-07"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-08"; State = "Done" }
             ]
         
@@ -429,7 +432,7 @@ type PickLastOnGivenDate() =
                 { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
                 { Date = DateTime.Parse "2020-01-16"; State = "Ready" }
-                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Done" }
             ]
@@ -442,7 +445,7 @@ type PickLastOnGivenDate() =
             { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
             { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
             { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
-            { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+            { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
         |], results)
 
@@ -456,7 +459,7 @@ type PickLastOnGivenDate() =
                 { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
                 { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
                 { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
-                { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+                { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
                 { Date = DateTime.Parse "2020-01-22"; State = "Done" }
             ]
             |> Seq.toArray
@@ -468,7 +471,7 @@ type PickLastOnGivenDate() =
             { Date = DateTime.Parse "2020-01-07"; State = "In Review" }
             { Date = DateTime.Parse "2020-01-10"; State = "Ready" }
             { Date = DateTime.Parse "2020-01-11"; State = "Merge & environment QA" }
-            { Date = DateTime.Parse "2020-01-16"; State = "Ready for release" }
+            { Date = DateTime.Parse "2020-01-16"; State = "Ready for Release" }
             { Date = DateTime.Parse "2020-01-22"; State = "Done" }
         |], results)
 
@@ -525,7 +528,7 @@ type MinCycleTime() =
     [<DataRow("Pending Review")>]
     [<DataRow("In Review")>]
     [<DataRow("Merge & environment QA")>]
-    [<DataRow("Ready for release")>]
+    [<DataRow("Ready for Release")>]
     member _.``Fall back to picking any other progress-like state``(state : string) =
         let result = minCycleTime config [
             { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
@@ -586,7 +589,7 @@ type MaxCycleTime() =
     [<DataRow("Pending Review")>]
     [<DataRow("In Review")>]
     [<DataRow("Merge & environment QA")>]
-    [<DataRow("Ready for release")>]
+    [<DataRow("Ready for Release")>]
     member _.``Fall back to picking any other progress-like state``(state : string) =
         let result = maxCycleTime config [
             { Date = DateTime.Parse "2020-01-01"; State = "Ready" }
@@ -729,10 +732,17 @@ type ProcessLineTest() =
 
     [<TestMethod>]
     member _.RealExample() =
-        let input = """ABC-8244,"Done","5","Story","Standard","ABC","","[ABC] Some kind of bug","2023-08-01","","Incident","8","27-06-2023","Ready","27-06-2023","In Progress","13-07-2023","Pending Review","25-07-2023","In Review","26-07-2023","Merge & environment QA","26-07-2023","Ready for release","27-07-2023","Done",27-07-2023"""
+        let input = """ABC-8244,"Done","5","Story","Standard","ABC","","[ABC] Some kind of bug","2023-08-01","","Incident","8","27-06-2023","Ready","27-06-2023","In Progress","13-07-2023","Pending Review","25-07-2023","In Review","26-07-2023","Merge & environment QA","26-07-2023","Ready for Release","27-07-2023","Done",27-07-2023"""
         match processLine config allStates 1 input with
         | Error message -> Assert.Fail($"Got Error: {message}")
         | Ok result -> Assert.AreEqual(TimeSpan.FromDays 15, result.CycleTime)
+        
+    [<TestMethod>]
+    member _.RealExample2() =
+        let input = """ABC-8174,Done,69,Story,Standard,HTS,,[ABC] Some kind of bug,30/08/2023,,Maint,,14/06/2023,To be refined,14/06/2023,Ready,14/06/2023,In Progress,14/06/2023,Ready,14/06/2023,In Progress,14/06/2023,Pending Review,21/06/2023,In Review,21/06/2023,Merge & environment QA,21/06/2023,Ready for Release,21/06/2023,Done,21/06/2023"""
+        match processLine config allStates 1 input with
+        | Error message -> Assert.Fail($"Got Error: {message}")
+        | Ok result -> Assert.AreEqual(TimeSpan.FromDays 8, result.CycleTime)
 
 [<TestClass>]
 type ParseDate() =

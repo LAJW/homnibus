@@ -112,10 +112,12 @@ let glueStatuses (config : Config) (statuses : Status list) =
             match config.InProgress.Contains before.State, config.InProgress.Contains after.State, lastStart with
             | false, true, None ->
                 lastStart <- Some after.Date
+            | true, true, None ->
+                lastStart <- Some before.Date
             | true, false, Some lastStartValue ->
                 yield after.Date - lastStartValue
                 lastStart <- None
-            | true, false, None -> // only first iteration
+            | true, false, None ->
                 yield after.Date - before.Date
             | _ -> () // ignore - glue adjacent segments together
     }
