@@ -303,6 +303,7 @@ let main (args : string array) =
             "Backlog", "Ready"
             "To be refined", "Triage"
             "Triage", "Ready"
+            "Ready for Dev", "In Progress"
             
             "To be refined", "Refined"
             "Refined", "Ready"
