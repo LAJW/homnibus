@@ -733,3 +733,25 @@ type ProcessLineTest() =
         match processLine config allStates 1 input with
         | Error message -> Assert.Fail($"Got Error: {message}")
         | Ok result -> Assert.AreEqual(TimeSpan.FromDays 15, result.CycleTime)
+
+[<TestClass>]
+type ParseDate() =
+    [<TestMethod>]
+    member _.UKDate() =
+        let result = tryParseDate("01/02/2023")
+        Assert.AreEqual(Some(DateTime.Parse("01-02-2023")), result)
+
+    [<TestMethod>]
+    member _.ISODate() =
+        let result = tryParseDate("01-02-2023")
+        Assert.AreEqual(Some(DateTime.Parse("01-02-2023")), result)
+
+    [<TestMethod>]
+    member _.FlippedDate() =
+        let result = tryParseDate("2023-02-01")
+        Assert.AreEqual(Some(DateTime.Parse("01-02-2023")), result)
+
+    [<TestMethod>]
+    member _.NotADate() =
+        let result = tryParseDate("Not-A-Date")
+        Assert.AreEqual(None, result)

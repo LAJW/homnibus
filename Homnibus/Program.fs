@@ -1,6 +1,7 @@
 ﻿module Homnibus
 
 open System
+open System.Globalization
 open System.IO
 open System.Text.RegularExpressions
 open System.Collections.Generic
@@ -70,17 +71,22 @@ type Status = {
     Date: DateTime
 }
 
+let tryParseDate(str: string) =
+    match DateTime.TryParse str with
+    | true, date -> Some date
+    | false, _ -> None
+
 module Status =
     let date (status : Status) = status.Date
     let state (status : Status) = status.State
     let create (state : string) (date : string) =
-        match DateTime.TryParse date with
-        | true, date ->
+        match tryParseDate date with
+        | Some date ->
             Ok {
                 State = state
                 Date = date
             }
-        | false, _ ->
+        | None ->
             Error($"Invalid date: {date}")
 
 let pickInProgressAndLastOnGivenDate (config: Config) (statuses : Status seq) : Status seq =
