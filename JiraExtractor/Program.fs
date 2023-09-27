@@ -68,6 +68,13 @@ let join (delim : string) (strings : string seq) = String.Join(delim, strings)
 module DateTime =
     let toString (format : string) (date : DateTime) = date.ToString(format)
 
+let changeLogItems (changeLog: ChangeLog option) =
+    changeLog
+    |> Option.bind (fun log -> log.histories)
+    |> Option.toList
+    |> Seq.concat
+    |> Seq.bind (fun x -> x.items)
+
 let changeLogStatuses(changeLog: ChangeLog option) =
     // TODO: Maybe add flags here
     changeLog
@@ -82,11 +89,43 @@ let changeLogStatuses(changeLog: ChangeLog option) =
     )
     |> Seq.toList
 
+let isFlagged(changeLog: ChangeLog option): bool =
+    (false, changeLogItems changeLog) ||> Seq.fold(fun state item ->
+        if item.field.Contains "Flagged" && item.changedString = Some "Impediment" then true
+        elif item.fromString = Some "Impediment" && item.changedString = Some "" then false
+        else state
+    )
+
+let storyPoints(changeLog: ChangeLog option): string option =
+    changeLogItems changeLog
+    |> Seq.rev
+    |> Seq.filter (fun item -> item.field.Contains "Story Points")
+    |> Seq.tryPick (fun item -> item.changedString)
+
+let daysInColumn(issue : Issue) : int =
+    let currentStatus = issue.fields.status |> map name |> Option.defaultValue ""
+    monad {
+        let! log = issue.changelog
+        let! histories = log.histories
+        histories |> Seq.collect (fun history ->
+            let createdOnDate = parseDate history.created
+            let duration = DateTime.Now - createdOnDate
+            let daysInColumn = duration.Days
+            history.items
+            |> Seq.filter (fun item -> item.field.Contains "status")
+            |> Seq.map (fun item -> daysInColumn, item)
+        ) 
+        |> Seq.map(fun (a, b) -> (a, b.changedString |> Option.orElse b.fromString |> Option.defaultValue ""))
+        |> Seq.filter(fun (_, b) -> b = currentStatus)
+        |> Seq.map fst
+        |> Seq.sum
+    } |> Option.defaultValue 0
+
 [<EntryPoint>]
 let main (args : string array) =
     match args with
     | [| jiraHostUrl; token; filterId |] ->
-        let maxResults = 100
+        let maxResults = 10_000
         let filterUrl (filterID: string) = $"{jiraHostUrl}/rest/api/2/filter/{filterID}"
         let url = filterUrl(filterId)
 
@@ -109,16 +148,16 @@ let main (args : string array) =
             for issue in search.issues do
                 let ticketNo = issue.key
                 let status = issue.fields.status |> map name |> Option.defaultValue ""
-                let daysInCC = ""
-                let ticketType = ""
-                let priority = ""
-                let component_ = ""
+                let daysInCC = issue |> daysInColumn |> string
+                let ticketType = issue.fields.IssueType |> map name |> Option.defaultValue ""
+                let priority = issue.fields.priority |> map name |> Option.defaultValue ""
+                let component_ = issue.fields.components |> map (Seq.map name >> join ", ") |> Option.defaultValue ""
                 let epicKey = ""
                 let summary = issue.fields.summary |> Option.defaultValue ""
-                let date = ""
-                let flagged = ""
-                let label = ""
-                let storyPoints = ""
+                let date = DateTime.Now |> DateTime.toString dateOutFormat
+                let flagged = if isFlagged issue.changelog then "Flagged" else ""
+                let label = issue.fields.labels |> toSeq |> Seq.concat |> join ", "
+                let storyPoints = issue.changelog |> storyPoints |> Option.defaultValue ""
                 let createdDate = issue.fields.created |> parseDate |> DateTime.toString dateOutFormat
                 let statuses = issue.changelog |> changeLogStatuses |> List.collect (fun (a, b) -> [a; b])
                 let row = [ticketNo; status; daysInCC; ticketType; priority; component_; epicKey; summary; date; flagged; label; storyPoints; createdDate] @ statuses
