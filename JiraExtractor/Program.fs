@@ -31,6 +31,7 @@ module DataModel =
     type HistoryItem = {
         field: string
         fromString: string option
+        [<JsonPropertyName("toString")>]
         changedString: string option
     }
 
