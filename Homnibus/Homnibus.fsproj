@@ -19,5 +19,9 @@
     <ItemGroup>
       <PackageReference Include="FSharpPlus" Version="1.4.1" />
     </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\Homnibus.Core\Homnibus.Core.fsproj" />
+    </ItemGroup>
 
 </Project>

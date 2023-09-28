@@ -11,6 +11,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Homnibus.Core\Homnibus.Core.fsproj" />
       <ProjectReference Include="..\Homnibus\Homnibus.fsproj" />
     </ItemGroup>
 

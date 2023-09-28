@@ -1,125 +1,14 @@
 ﻿open System.Net.Http
 open System.Text.Json
-open System.Text.Json.Serialization
 open FSharpPlus
 open System
+open Homnibus.Core.Jira
 
 let searchUrl (maxResults: int) (searchUrl: string) : string =
     searchUrl + $"&expand=changelog&maxResults={maxResults}"
 
-let inline name(self : ^T when ^T : (member name : ^V)) = (^T : (member name : ^V) self)
-
-[<AutoOpen>]
-module DataModel =
-    type FilterModel = { searchUrl : string }
-    type Priority = { name : string }
-    type IssueType = { name : string }
-    type Status = { name : string }
-    type Component = { name : string }
-
-    type Fields = {
-        priority: Priority option
-        labels: string list option
-        status: Status option
-        components: Component list option
-        [<JsonPropertyName("issuetype")>]
-        IssueType: IssueType option
-        summary: string option
-        created: string
-    }
-
-    type HistoryItem = {
-        field: string
-        fromString: string option
-        [<JsonPropertyName("toString")>]
-        changedString: string option
-    }
-
-    type History = {
-        created : string
-        items : HistoryItem list
-    }
-
-    type ChangeLog = {
-        histories: History list option
-    }
-
-    type Issue = {
-        key : string
-        fields : Fields
-        changelog : ChangeLog option
-    }
-
-    type SearchModel = {
-        maxResults : int
-        total : int
-        startAt : int
-        issues : Issue list
-    }
-
-// "2022-03-03T08:38:02.000+0000"
-let dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-let parseDate (str : string) : DateTime = DateTime.Parse(str) // TODO: Try using exact
-let dateOutFormat = "dd-MM-yyyy"
-
 let surround (ch : char) (str : string) = $"{ch}{str}{ch}"
 let join (delim : string) (strings : string seq) = String.Join(delim, strings)
-
-module DateTime =
-    let toString (format : string) (date : DateTime) = date.ToString(format)
-
-let changeLogItems (changeLog: ChangeLog option) =
-    changeLog
-    |> Option.bind (fun log -> log.histories)
-    |> Option.toList
-    |> Seq.concat
-    |> Seq.bind (fun x -> x.items)
-
-let changeLogStatuses(changeLog: ChangeLog option) =
-    // TODO: Maybe add flags here
-    changeLog
-    |> Option.bind (fun logs -> logs.histories)
-    |> Option.defaultValue []
-    |> Seq.bind (fun history -> history.items |> Seq.map (fun item -> history, item))
-    |> Seq.filter (fun (_, item) -> item.field.Contains("status"))
-    |> Seq.map (fun (history, item) ->
-        let date = history.created |> parseDate |> DateTime.toString "dd-MM-yyyy"
-        let statusName = item.changedString |> Option.orElse(item.fromString) |> Option.defaultValue ""
-        (statusName, date)
-    )
-    |> Seq.toList
-
-let isFlagged(changeLog: ChangeLog option): bool =
-    (false, changeLogItems changeLog) ||> Seq.fold(fun state item ->
-        if item.field.Contains "Flagged" && item.changedString = Some "Impediment" then true
-        elif item.fromString = Some "Impediment" && item.changedString = Some "" then false
-        else state
-    )
-
-let storyPoints(changeLog: ChangeLog option): string option =
-    changeLogItems changeLog
-    |> Seq.rev
-    |> Seq.filter (fun item -> item.field.Contains "Story Points")
-    |> Seq.tryPick (fun item -> item.changedString)
-
-let daysInColumn(issue : Issue) : int =
-    let currentStatus = issue.fields.status |> map name |> Option.defaultValue ""
-    monad {
-        let! log = issue.changelog
-        let! histories = log.histories
-        histories |> Seq.collect (fun history ->
-            let createdOnDate = parseDate history.created
-            let duration = DateTime.Now - createdOnDate
-            let daysInColumn = duration.Days
-            history.items
-            |> Seq.filter (fun item -> item.field.Contains "status")
-            |> Seq.map (fun item -> daysInColumn, item)
-        ) 
-        |> Seq.map(fun (a, b) -> (a, b.changedString |> Option.orElse b.fromString |> Option.defaultValue ""))
-        |> Seq.filter(fun (_, b) -> b = currentStatus)
-        |> Seq.map fst
-        |> Seq.sum
-    } |> Option.defaultValue 0
 
 [<EntryPoint>]
 let main (args : string array) =
@@ -146,20 +35,21 @@ let main (args : string array) =
             let header = """Ticket No","Status","Days In Column","Ticket Type","Priority","Components","Epic Key","Summary","Date","Flagged","Label","Story Points","Created Date","Previous Statuses"""
             printfn $"\"%s{header}\""
             for issue in search.issues do
-                let ticketNo = issue.key
-                let status = issue.fields.status |> map name |> Option.defaultValue ""
-                let daysInCC = issue |> daysInColumn |> string
-                let ticketType = issue.fields.IssueType |> map name |> Option.defaultValue ""
-                let priority = issue.fields.priority |> map name |> Option.defaultValue ""
-                let component_ = issue.fields.components |> map (Seq.map name >> join ", ") |> Option.defaultValue ""
+                let issue = issue |> Issue.extract
+                let ticketNo = issue.TicketNo
+                let status = issue.Status |?? ""
+                let daysInCC = issue.DaysInColumn |> string
+                let ticketType = issue.TicketType |?? ""
+                let priority = issue.Priority |?? ""
+                let component_ = issue.Components |> join ", "
                 let epicKey = ""
-                let summary = issue.fields.summary |> Option.defaultValue ""
+                let summary = issue.Summary |?? ""
                 let date = DateTime.Now |> DateTime.toString dateOutFormat
-                let flagged = if isFlagged issue.changelog then "Flagged" else ""
-                let label = issue.fields.labels |> toSeq |> Seq.concat |> join ", "
-                let storyPoints = issue.changelog |> storyPoints |> Option.defaultValue ""
-                let createdDate = issue.fields.created |> parseDate |> DateTime.toString dateOutFormat
-                let statuses = issue.changelog |> changeLogStatuses |> List.collect (fun (a, b) -> [a; b])
+                let flagged = if issue.Flagged then "Flagged" else ""
+                let label = issue.Labels |> join ", "
+                let storyPoints = issue.StoryPoints |> map string |?? ""
+                let createdDate = issue.CreatedDate |> DateTime.toString dateOutFormat
+                let statuses = issue.Statuses |> List.collect (fun status -> [status.Date.ToString(dateOutFormat); status.Name])
                 let row = [ticketNo; status; daysInCC; ticketType; priority; component_; epicKey; summary; date; flagged; label; storyPoints; createdDate] @ statuses
                 row |> map (surround '"') |> join "," |> printfn "%s"
         }

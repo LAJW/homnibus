@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="DomainModel.fs" />
+      <Compile Include="Jira\DataModel.fs" />
+      <Compile Include="Jira\Prelude.fs" />
+      <Compile Include="Jira\Issue.fs" />
+      <Compile Include="Jiras.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="FSharpPlus" Version="1.4.1" />
+    </ItemGroup>
+
+</Project>
