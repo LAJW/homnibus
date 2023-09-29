@@ -3,7 +3,6 @@ open System.Net.Http
 open System.Text.Json
 open FSharpPlus
 open System
-open FSharpPlus.Control
 open Homnibus.Core.Jira
 open System.Threading.Tasks
 
@@ -36,8 +35,6 @@ type AuthorizedClient(token : string) =
                 | :? HttpRequestException -> return Error "Could not connect"
                 | :? JsonException -> return Error "Bad JSON received"
         }
-        
-type X = { k : Choice }
 
 [<EntryPoint>]
 let main (args : string array) =
