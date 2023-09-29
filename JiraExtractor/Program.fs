@@ -68,7 +68,8 @@ let main (args : string array) =
                 let storyPoints = issue.StoryPoints |> map string |?? ""
                 let createdDate = issue.CreatedDate |> DateTime.toString dateOutFormat
                 let statuses = issue.Statuses |> List.collect (fun status -> [status.Date.ToString(dateOutFormat); status.Name])
-                let row = [ticketNo; status; daysInCC; ticketType; priority; component_; epicKey; summary; date; flagged; label; storyPoints; createdDate] @ statuses
+                let row = ticketNo :: status :: daysInCC :: ticketType :: priority :: component_ :: epicKey :: summary
+                          :: date :: flagged :: label :: storyPoints :: createdDate :: statuses
                 row |> map (surround '"') |> join "," |> printfn "%s"
         ))
         |> Async.AwaitTask
